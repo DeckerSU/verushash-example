@@ -378,10 +378,19 @@ __device__ void haraka256_sk(unsigned char *out, const unsigned char *in)
     }
 }
 
-__global__ void VerusHash_GPU(void *result, const void *data, size_t len)
+__global__ void VerusHash_GPU(void *result_arr, const void *data_arr/*, size_t len*/)
 //__global__ void VerusHash_GPU(unsigned char *result, unsigned char *data, int len)
-
 {
+
+    uint32_t tid = threadIdx.x * BLOCKS + blockIdx.x;
+    //printf("(*) VerusHash_GPU [%02d x %02d] tid = %02d\n", threadIdx.x, blockIdx.x, tid);
+
+    size_t len = 1487;
+    unsigned char *result = ((unsigned char *)result_arr + tid * 32);
+    unsigned char *data = ((unsigned char *)data_arr + tid * 1488); 
+
+    //printf("data[%02d] = 0x%08x\n",tid, data[0]);
+
     unsigned char buf[128];
     unsigned char *bufPtr = buf;
     int pos = 0, nextOffset = 64;
