@@ -133,15 +133,17 @@ int main(int argc, char *argv[])
 
   for (k=0; k < 16 * 1000000 / NTHREAD; k++) { // main test loop
 
-  if (0) {
   for (j=0; j<32; j++) nOnceStart[j] = rand() & 0xFF;
-  printf("nOnceStart = "); for (j=0; j<32; j++) printf("%02x", nOnceStart[j]); printf("\n");
-  }
+  printf("nOnceStart [%d] = ", k * NTHREAD); for (j=0; j<32; j++) printf("%02x", nOnceStart[j]); printf("\n");
 
   for (i=0; i<NTHREAD; i++) {
-        // don't forget to set nonce
-        blockheader_template[0] = i; // just for test
+        // blockheader_template[0] = i; // just for test
+	
   	memcpy(blockheaders_arr + i * 1488, blockheader_template, 1488);
+        memcpy(blockheaders_arr + i * 1488 + 4+32+32+32+4+4, nOnceStart, 32);
+        // don't forget to set nonce
+        blockheaders_arr[i * 1488 + 4+32+32+32+4+4] = i & 0xFF;
+        blockheaders_arr[i * 1488 + 4+32+32+32+4+4+1] = (i >> 8) & 0xFF;
   	memset(verusdgst_arr + i * 32, 0, 32);
   }
 
@@ -156,6 +158,7 @@ int main(int argc, char *argv[])
   }
   }
 
+
   cudaMemcpy(blockheaders_arr_cuda, blockheaders_arr, 1488 * NTHREAD, cudaMemcpyHostToDevice);
   cudaMemcpy(verusdgst_arr_cuda, verusdgst_arr, 32 * NTHREAD, cudaMemcpyHostToDevice);
   VerusHash_GPU<<<BLOCKS,THREADS>>>(verusdgst_arr_cuda, blockheaders_arr_cuda);
@@ -169,7 +172,9 @@ int main(int argc, char *argv[])
 
   cudaMemcpy(verusdgst_arr, verusdgst_arr_cuda, 32 * NTHREAD, cudaMemcpyDeviceToHost);
 
-  }
+  // here we should check results (!!!)
+
+  } // main test loop
 
   gettimeofday(&tv2, NULL);
   printf ("Total time = %f seconds\n",
