@@ -1,0 +1,3 @@
+#define THREADS 128
+#define BLOCKS  100
+#define NTHREAD (BLOCKS*THREADS)
