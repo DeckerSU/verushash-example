@@ -2,9 +2,9 @@
 
 @REM Check for Visual Studio
 call set "VSPATH="
-rem if defined VS140COMNTOOLS ( if not defined VSPATH (
-rem  call set "VSPATH=%%VS140COMNTOOLS%%"
-rem ) )
+if defined VS140COMNTOOLS ( if not defined VSPATH (
+ call set "VSPATH=%%VS140COMNTOOLS%%"
+) )
 if defined VS120COMNTOOLS ( if not defined VSPATH (
  call set "VSPATH=%%VS120COMNTOOLS%%"
 ) )
