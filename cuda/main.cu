@@ -116,4 +116,32 @@ int main(int argc, char *argv[])
   printf("verushash dgst: %s\n", outputBuffer); 
   printf("              : fcbf0e05b0f030d1c24285701e2fe719d8c10455e36e9febb5759a0000000000\n");
 
+
+  /* Example of acquire data in kernel */
+
+  uint32_t data;
+  uint32_t *data_cuda;
+
+  data = 0xdeadc0de;
+
+  printf("\n");
+  cudaMalloc(&data_cuda, sizeof(data) * NTHREAD);
+  for (int i=0; i < NTHREAD; i++) {
+  	  data = 0xdead0000 | i;
+  	  printf("[Host] tid = %02d, data = 0x%08x\n", i, data);
+	  cudaMemcpy(&data_cuda[i],&data,sizeof(data), cudaMemcpyHostToDevice);
+  }
+
+  /* uint32_t tid = threadIdx.x * BLOCKS + blockIdx.x;
+
+  hwid = (hwid_arr + tid * 32);
+  hash = (hash_arr + tid * 32);
+  pin = (pin_arr + tid * 16);
+  */
+
+  functest<<<BLOCKS,THREADS>>>(data_cuda);
+  err = cudaDeviceSynchronize();
+  if (err) { printf("Err = %d\n",err);  exit(err); }
+
+
 }
