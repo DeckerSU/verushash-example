@@ -155,6 +155,11 @@ int fulltest(const unsigned char *ihash, const unsigned char *itarget)
 int main()
 {
 
+    gcurl_init();
+    printf("Jansson: %s\nCurl: %s\n", JANSSON_VERSION, curl_version());
+    printf("\n");
+
+
     char userhome[MAXBUF];
     snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
 
@@ -164,12 +169,46 @@ int main()
     printf("rpcpassword: \"%s\"\n", configstruct.rpcpassword);
     printf("rpcport: %d\n", configstruct.rpcport);
 
-    gcurl_init();
+
     char request[256], *txt;
     snprintf(request, 256, "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"getblocktemplate\", \"params\": [%s] }", "");
     txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, request);
     printf(YELLOW "Result: " RESET "%s\n", txt);
-    printf("Jansson library version: " YELLOW "%s" RESET "\n", JANSSON_VERSION);
+
+    json_t *root;
+    json_error_t error;
+    json_t *result, *previousblockhash;
+    const char *previousblockhash_text;
+
+    root = json_loads(txt, 0, &error);
+    free(txt);
+
+    if(!root)
+    {
+        fprintf(stderr, "error: on line %d: %s\n", error.line, error.text);
+        return 1;
+    }
+
+    result = json_object_get(root, "result");
+    if(!json_is_object(result)) {
+        fprintf(stderr, "error: result is not an object\n");
+        json_decref(root);
+        return 1;
+    }
+
+    previousblockhash = json_object_get(result, "previousblockhash");
+
+    if(!json_is_string(previousblockhash))
+    {
+        fprintf(stderr, "error: previousblockhash is not a string\n");
+        json_decref(root);
+        return 1;
+    }
+
+    previousblockhash_text = json_string_value(previousblockhash);
+    printf("previousblockhash = %s\n", previousblockhash_text);
+
+    json_decref(root);
 
     //exit(1);
 
