@@ -32,3 +32,15 @@ make install
 cd $curdir
 
 # 2. libjansson (http://www.digip.org/jansson/)
+
+mkdir -p $curdir/depends
+cd $curdir/depends
+git clone https://github.com/akheron/jansson
+mkdir -p jansson-build
+cd jansson-build
+cmake ../jansson -DCMAKE_INSTALL_PREFIX=$curdir -DJANSSON_BUILD_SHARED_LIBS:BOOL=OFF -DJANSSON_EXAMPLES:BOOL=OFF
+#cmake ../jansson -LA > $curdir/options.txt
+make -j$(nproc)
+make install
+cd $curdir
+
