@@ -1,0 +1,11 @@
+depends/
+lib/
+obj/
+include/
+bin/
+cuda/main
+cuda/main.exe
+*.~
+*.depend
+*.layout
+options.txt
