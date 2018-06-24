@@ -4,11 +4,83 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <ctype.h>
 #include "haraka.h"
 
 
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
+
+/* Global Variables */
+
+#define MAXBUF 2048
+#define FILENAME "VRSC.conf"
+#define DELIM "="
+
+struct config
+{
+    char rpcuser[MAXBUF];
+    char rpcpassword[MAXBUF];
+    int rpcport;
+};
+
+struct config configstruct;
+
+/* ---------------- */
+
+char *trimwhitespace(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace((unsigned char)*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace((unsigned char)*end)) end--;
+
+  // Write new null terminator character
+  end[1] = '\0';
+
+  return str;
+}
+
+struct config get_config(char *filename)
+{
+        struct config configstruct;
+        FILE *file = fopen (filename, "r");
+
+        if (file != NULL)
+        {
+                char line[MAXBUF];
+                int i = 0;
+
+                while(fgets(line, sizeof(line), file) != NULL)
+                {
+                        char *cfline, *key;
+                        cfline = strstr((char *)line,DELIM);
+                        *cfline = 0;
+                        key = trimwhitespace(line);
+                        //printf("[1] key = %s\n",key);
+                        cfline = cfline + strlen(DELIM);
+                        cfline = trimwhitespace(cfline);
+                        //printf("[2] value = %s\n",cfline);
+                        if (strcmp(key,"rpcuser") == 0)
+                            memcpy(configstruct.rpcuser,cfline,strlen(cfline));
+                        if (strcmp(key,"rpcpassword") == 0)
+                            memcpy(configstruct.rpcpassword,cfline,strlen(cfline));
+                        if (strcmp(key,"rpcport") == 0)
+                            configstruct.rpcport = atoi(cfline);
+                        i++;
+                }
+                fclose(file);
+        }
+        return configstruct;
+
+}
 
 /*
 #define AES4(s0, s1, s2, s3) \
@@ -55,38 +127,6 @@ void VerusHash(void *result, const void *data, size_t len)
     memcpy(result, bufPtr, 32);
 };
 
-void VerusHash_old(void *result, const void *data, size_t len)
-{
-    unsigned char buf[128];
-    unsigned char *bufPtr = buf;
-    int pos = 0, nextOffset = 64;
-    unsigned char *bufPtr2 = bufPtr + nextOffset;
-    unsigned char *ptr = (unsigned char *)data;
-
-    // put our last result or zero at beginning of buffer each time
-    memset(bufPtr, 0, 32);
-
-    // digest up to 32 bytes at a time
-    for ( ; pos < len; pos += 32)
-    {
-        if (len - pos >= 32)
-        {
-            memcpy(bufPtr + 32, ptr + pos, 32);
-        }
-        else
-        {
-            int i = (int)(len - pos);
-            memcpy(bufPtr + 32, ptr + pos, i);
-            memset(bufPtr + 32 + i, 0, 32 - i);
-        }
-        haraka512(bufPtr2, bufPtr);
-        bufPtr2 = bufPtr;
-        bufPtr += nextOffset;
-        nextOffset *= -1;
-    }
-    memcpy(result, bufPtr, 32);
-};
-
 /* if hash < target returns 1 */
 int fulltest(const unsigned char *ihash, const unsigned char *itarget)
 {
@@ -111,6 +151,17 @@ int fulltest(const unsigned char *ihash, const unsigned char *itarget)
 
 int main()
 {
+
+    char userhome[MAXBUF];
+    snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
+
+    configstruct = get_config(userhome);
+
+    printf("rpcuser: \"%s\"\n", configstruct.rpcuser);
+    printf("rpcpassword: \"%s\"\n", configstruct.rpcpassword);
+    printf("rpcport: %d\n", configstruct.rpcport);
+    //exit(1);
+
     // haraka512(unsigned char *out, const unsigned char *in)
     // unsigned char data[] = "test";
 
