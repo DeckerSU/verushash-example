@@ -5,7 +5,9 @@
 #include <sys/time.h>
 #include <stdint.h>
 #include <ctype.h>
+
 #include "haraka.h"
+#include "stuff.h"
 
 
 #define SER_GETHASH (1 << 2)
@@ -160,6 +162,13 @@ int main()
     printf("rpcuser: \"%s\"\n", configstruct.rpcuser);
     printf("rpcpassword: \"%s\"\n", configstruct.rpcpassword);
     printf("rpcport: %d\n", configstruct.rpcport);
+
+    gcurl_init();
+    char request[256], *txt;
+    snprintf(request, 256, "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"getblocktemplate\", \"params\": [%s] }", "");
+    txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, request);
+    printf(YELLOW "Result: " RESET "%s\n", txt);
+
     //exit(1);
 
     // haraka512(unsigned char *out, const unsigned char *in)

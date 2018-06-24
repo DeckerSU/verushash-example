@@ -31,7 +31,16 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-mavx2 -maes" />
+			<Add directory="include" />
 		</Compiler>
+		<Linker>
+			<Add library="curl" />
+			<Add library="crypto" />
+			<Add library="pthread" />
+			<Add library="ssl" />
+			<Add library="z" />
+			<Add directory="lib" />
+		</Linker>
 		<Unit filename="haraka.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -39,6 +48,10 @@
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="stuff.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="stuff.h" />
 		<Extensions>
 			<envvars />
 			<code_completion />
