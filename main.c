@@ -85,6 +85,28 @@ void VerusHash_old(void *result, const void *data, size_t len)
     memcpy(result, bufPtr, 32);
 };
 
+/* if hash < target returns 1 */
+int fulltest(const unsigned char *ihash, const unsigned char *itarget)
+{
+	int i;
+	int rc = 1;
+
+	uint32_t *hash = (uint32_t *)ihash;
+	uint32_t *target = (uint32_t *)itarget;
+
+	for (i = 7; i >= 0; i--) {
+		if (hash[i] > target[i]) {
+			rc = 0;
+			break;
+		}
+		if (hash[i] < target[i]) {
+			rc = 1;
+			break;
+		}
+	}
+	return rc;
+}
+
 int main()
 {
     // haraka512(unsigned char *out, const unsigned char *in)
