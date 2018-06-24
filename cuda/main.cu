@@ -150,9 +150,15 @@ int main(int argc, char *argv[])
   unsigned char *verusdgst_arr = NULL;
   unsigned char *verusdgst_arr_cuda = NULL;
 
-  blockheaders_arr = (unsigned char *) malloc (1488 * NTHREAD);
+  // ToDo: https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/
+
+  // blockheaders_arr = (unsigned char *) malloc (1488 * NTHREAD);
+  cudaMallocHost((void**)&blockheaders_arr, 1488 * NTHREAD);
+
   cudaMalloc(&blockheaders_arr_cuda, 1488 * NTHREAD);
-  verusdgst_arr = (unsigned char *) malloc (32 * NTHREAD);
+  // verusdgst_arr = (unsigned char *) malloc (32 * NTHREAD);
+  cudaMallocHost((void**)&verusdgst_arr, 32 * NTHREAD);
+
   cudaMalloc(&verusdgst_arr_cuda, 1488 * NTHREAD);
 
   unsigned char nOnceStart[32];
@@ -163,6 +169,10 @@ int main(int argc, char *argv[])
   struct timeval  tv1, tv2;
   gettimeofday(&tv1, NULL);
 
+  //cudaFuncSetCacheConfig(VerusHash_GPU, cudaFuncCachePreferShared);
+  //cudaFuncSetCacheConfig(VerusHash_GPU, cudaFuncCachePreferL1);
+
+
   for (k=0; k < 16 * 1000000 / NTHREAD; k++) { // main test loop
 
   for (j=0; j<32; j++) nOnceStart[j] = rand() & 0xFF;
@@ -172,10 +182,12 @@ int main(int argc, char *argv[])
         // blockheader_template[0] = i; // just for test
 	
   	memcpy(blockheaders_arr + i * 1488, blockheader_template, 1488);
-        memcpy(blockheaders_arr + i * 1488 + 4+32+32+32+4+4, nOnceStart, 32);
         // don't forget to set nonce
+        if (0) {
+        memcpy(blockheaders_arr + i * 1488 + 4+32+32+32+4+4, nOnceStart, 32);
         blockheaders_arr[i * 1488 + 4+32+32+32+4+4] = i & 0xFF;
         blockheaders_arr[i * 1488 + 4+32+32+32+4+4+1] = (i >> 8) & 0xFF;
+        }
   	memset(verusdgst_arr + i * 32, 0, 32);
   }
 
@@ -191,12 +203,18 @@ int main(int argc, char *argv[])
   }
 
 
+  //cudaMemcpy(blockheaders_arr_cuda, blockheaders_arr, 1488 * NTHREAD, cudaMemcpyHostToDevice);
+
+  // http://cuda-programming.blogspot.com/2013/01/what-is-constant-memory-in-cuda.html
   cudaMemcpy(blockheaders_arr_cuda, blockheaders_arr, 1488 * NTHREAD, cudaMemcpyHostToDevice);
-  cudaMemcpy(verusdgst_arr_cuda, verusdgst_arr, 32 * NTHREAD, cudaMemcpyHostToDevice);
+
+
+  //cudaMemcpy(verusdgst_arr_cuda, verusdgst_arr, 32 * NTHREAD, cudaMemcpyHostToDevice);
+  cudaMemset(verusdgst_arr_cuda, 0, 32 * NTHREAD);
+
   VerusHash_GPU<<<BLOCKS,THREADS>>>(verusdgst_arr_cuda, blockheaders_arr_cuda);
 
   err = cudaDeviceSynchronize();
- 
   if (err) {
     printf("Err = %d\n",err);
     exit(err);
@@ -207,6 +225,17 @@ int main(int argc, char *argv[])
   // here we should check results (!!!)
 
   } // main test loop
+
+  // print first 5 hashes from last iteration
+  for (i=0; i<5; i++) {
+	if (0) {
+	printf("data[%02d] = ",i);
+	for (j=0; j<1488; j++) printf("%02x",*(blockheaders_arr + i * 1488 + j));
+	printf("\n"); }
+	printf("hash[%02d] = ",i);
+	for (j=0; j<32; j++) printf("%02x",*(verusdgst_arr + i * 32 + j));
+	printf("\n");
+  }
 
   gettimeofday(&tv2, NULL);
   printf ("Total time = %f seconds\n",
