@@ -39,6 +39,7 @@
 			<Add library="pthread" />
 			<Add library="ssl" />
 			<Add library="z" />
+			<Add library="jansson" />
 			<Add directory="lib" />
 		</Linker>
 		<Unit filename="haraka.c">

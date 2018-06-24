@@ -8,6 +8,7 @@
 
 #include "haraka.h"
 #include "stuff.h"
+#include <jansson.h>
 
 
 #define SER_GETHASH (1 << 2)
@@ -168,6 +169,7 @@ int main()
     snprintf(request, 256, "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"getblocktemplate\", \"params\": [%s] }", "");
     txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, request);
     printf(YELLOW "Result: " RESET "%s\n", txt);
+    printf("Jansson library version: " YELLOW "%s" RESET "\n", JANSSON_VERSION);
 
     //exit(1);
 
