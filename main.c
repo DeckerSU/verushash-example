@@ -157,47 +157,6 @@ void VerusHash(void *result, const void *data, size_t len)
     memcpy(result, bufPtr, 32);
 };
 
-void VerusHashHalf(void *result, const void *data, size_t len)
-{
-    unsigned char buf[128];
-    unsigned char *bufPtr = buf;
-    int pos = 0, nextOffset = 64;
-    unsigned char *bufPtr2 = bufPtr + nextOffset;
-    unsigned char *ptr = (unsigned char *)data;
-    uint32_t count = 0;
-
-    // put our last result or zero at beginning of buffer each time
-    memset(bufPtr, 0, 32);
-
-    // digest up to 32 bytes at a time
-    for ( ; pos < len; pos += 32)
-    {
-        if (len - pos >= 32)
-        {
-            memcpy(bufPtr + 32, ptr + pos, 32);
-        }
-        else
-        {
-            int i = (int)(len - pos);
-            memcpy(bufPtr + 32, ptr + pos, i);
-            memset(bufPtr + 32 + i, 0, 32 - i);
-        }
-
-        count++;
-
-        if (count == 47) break;
-        //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
-        haraka512(bufPtr2, bufPtr); // ( out, in)
-        bufPtr2 = bufPtr;
-        bufPtr += nextOffset;
-        //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
-
-
-        nextOffset *= -1;
-    }
-    memcpy(result, bufPtr, 32);
-};
-
 /* if hash < target returns 1 */
 int fulltest(const unsigned char *ihash, const unsigned char *itarget)
 {
@@ -489,119 +448,65 @@ int main()
     //dump((unsigned char *)&blocktemplate, sizeof(blocktemplate));
 
     unsigned char blockhash[128];
-    unsigned char blockhash_half[128];
-    unsigned char blockhash_full[128];
 
     // target should read from getblocktemplate, but here is temporarily hardcoded :)
     unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00                         };
+ 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00 };
 
-    uint32_t n;
-
-    /*
-    blocktemplate.blocktemplate[1483] = n & 0xff;
-    blocktemplate.blocktemplate[1484] = (n >> 8) & 0xff;
-    blocktemplate.blocktemplate[1485] = (n >> 16) & 0xff;
-    blocktemplate.blocktemplate[1486] = (n >> 24) & 0xff;
-    */
-
-    //blocktemplate.blocktemplate[1486-14] = 0xde;
-
-    n = 0x0;
-    blocktemplate.blocktemplate[1486-14] = n & 0xff;
-    blocktemplate.blocktemplate[1486-14+1] = (n >> 8) & 0xff;
-    blocktemplate.blocktemplate[1486-14+2] = (n >> 16) & 0xff;
-    blocktemplate.blocktemplate[1486-14+3] = (n >> 24) & 0xff;
-
-    memset(blockhash, 0, sizeof(blockhash));
-    memset(blockhash_half, 0, sizeof(blockhash_half));
-
-    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
-
-    VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration, iddqd ;)
-
+    uint32_t n, nmax;
+    double time_elapsed;
     time_t t;
     uint32_t rn;
     srand((unsigned) time(&t));
     rn = rand();
-    printf("random.0x%08x ", rn);
 
     struct timeval  tv1, tv2;
     gettimeofday(&tv1, NULL);
 
-    for (n=0; n <= 256 * 1000000; n++) {
+    nmax = 16 * 1000000;
+    printf("%dMh cycle.0x%08x ", nmax / 1000000, rn);
 
-        blockhash_half[32+4] = n & 0xff;
-        blockhash_half[32+5] = (n >> 8) & 0xff;
-        blockhash_half[32+6] = (n >> 16) & 0xff;
-        blockhash_half[32+7] = (n >> 24) & 0xff;
+    for (n=0; n <= nmax; n++) {
 
-        blockhash_half[32+0] = rn & 0xff;;
-        blockhash_half[32+1] = (rn >> 8) & 0xff;;
-        blockhash_half[32+2] = (rn >> 16) & 0xff;
-        blockhash_half[32+3] = (rn >> 24) & 0xff;
+    blocktemplate.nonce[0] = n & 0xff;
+    blocktemplate.nonce[1] = (n >> 8) & 0xff;
+    blocktemplate.nonce[2] = (n >> 16) & 0xff;
+    blocktemplate.nonce[3] = (n >> 24) & 0xff;
 
+    //dump(&blocktemplate, 1487); exit(1);
 
-        //blockhash_half[32+8]  = 0xde;
-        //blockhash_half[32+9]  = 0xad;
-        //blockhash_half[32+10]  = 0xca;
-        //blockhash_half[32+11] = 0xfe;
-        //blockhash_half[32+12] = 0xbe;
-        //blockhash_half[32+13] = 0xda;
+    //memset(blockhash, 0, sizeof(blockhash));
+    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
 
 
-        haraka512(blockhash_full, blockhash_half); // ( out, in)
-
-        //printf("orig. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-        //printf("half. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_half[31-m]); } printf(RESET "\n");
-        //printf("full. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
-
-        if (fulltest(blockhash_full, target)) {
+        if (fulltest(blockhash, target)) {
             printf("\n");
             printf("Solution found: " YELLOW);
             printf("full.%d ",n); for (int m=0; m < 32; m++) {
                 if (m==4) printf(GREEN);
-                printf("%02x", blockhash_full[31-m]);
+                printf("%02x", blockhash[31-m]);
                 if (m==4) printf(RESET);
                 } printf(RESET "\n");
-
-            blocktemplate.blocktemplate[1486-14+0] = blockhash_half[32+0];
-            blocktemplate.blocktemplate[1486-14+1] = blockhash_half[32+1];
-            blocktemplate.blocktemplate[1486-14+2] = blockhash_half[32+2];
-            blocktemplate.blocktemplate[1486-14+3] = blockhash_half[32+3];
-
-            blocktemplate.blocktemplate[1486-14+4] = blockhash_half[32+4];
-            blocktemplate.blocktemplate[1486-14+5] = blockhash_half[32+5];
-            blocktemplate.blocktemplate[1486-14+6] = blockhash_half[32+6];
-            blocktemplate.blocktemplate[1486-14+7] = blockhash_half[32+7];
-
-            //blocktemplate.blocktemplate[1486-14+8] = blockhash_half[32+8];
-            //blocktemplate.blocktemplate[1486-14+9] = blockhash_half[32+9];
-            //blocktemplate.blocktemplate[1486-14+10] = blockhash_half[32+10];
-            //blocktemplate.blocktemplate[1486-14+11] = blockhash_half[32+11];
-            //blocktemplate.blocktemplate[1486-14+12] = blockhash_half[32+12];
-            //blocktemplate.blocktemplate[1486-14+13] = blockhash_half[32+13];
-
-            VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
 
             for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
             unsigned char submitblock[2 * 1488 + 1];
             init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
             // here should be a curl call with submitblock, instead of this :)
             unsigned char command[16384]; // TODO: need to calc this buffer
-            printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+            //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
             sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-            //system(command);
+            system(command);
             //break;
         }
 
     }
     //printf("xxM cycle end ...\n");
     gettimeofday(&tv2, NULL);
-    printf ("in %f seconds\n",
-         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-         (double) (tv2.tv_sec - tv1.tv_sec));
+    time_elapsed = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec);
+    printf ("in %f seconds, %f H/s\n",
+         time_elapsed, (double) (nmax / time_elapsed));
 
 
     int m;
