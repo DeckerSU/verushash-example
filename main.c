@@ -316,7 +316,7 @@ void reverse_hexstr(char *str)
 // *** iguana_utils.c ***
 
 
-union tblocktemplate getblocktemplate() {
+union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
 
     uint32_t i;
     union tblocktemplate t;
@@ -329,13 +329,15 @@ union tblocktemplate getblocktemplate() {
 
     json_t *j_root;
     json_error_t error;
-    json_t *j_result, *j_previousblockhash, *j_version, *j_coinbasetxn, *j_hash, *j_data, *j_transactions;
+    json_t *j_result, *j_previousblockhash, *j_version, *j_coinbasetxn, *j_hash, *j_data, *j_transactions, *j_bits, *j_curtime;
 
     const char *previousblockhash;
     const char *hash;
     const char *data;
+    const char *bits_str;
 
     uint32_t version;
+    uint32_t curtime;
 
     j_root = json_loads(txt, 0, &error);
     free(txt);
@@ -365,14 +367,27 @@ union tblocktemplate getblocktemplate() {
     decode_hex(&t.prevhash, 32, previousblockhash);
 
     j_coinbasetxn = json_object_get(j_result, "coinbasetxn");
+    // in simple case when we have one coinbase tx merkle root = tx hash
+
     j_hash = json_object_get(j_coinbasetxn, "hash");
     hash = json_string_value(j_hash);
     reverse_hexstr(hash);
     decode_hex(&t.merkleroot, 32, hash);
 
+
     j_data = json_object_get(j_coinbasetxn, "data");
     data = json_string_value(j_data);
-    printf("data = %s\n", data);
+    strcpy(coinbase_data, data);
+
+
+    j_bits = json_object_get(j_result, "bits");
+    bits_str = json_string_value(j_bits);
+    reverse_hexstr(bits_str);
+    decode_hex(&t.nbits, 4, bits_str);
+
+    j_curtime = json_object_get(j_result, "curtime");
+    curtime = json_integer_value(j_curtime);
+    memcpy(&t.timestamp, &curtime, sizeof(t.timestamp));
 
 
     // fill solution
@@ -414,8 +429,49 @@ int main()
     snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
     configstruct = get_config(userhome);
 
-    blocktemplate = getblocktemplate();
+    char coinbase_data[MAXBUF];
+    blocktemplate = getblocktemplate(coinbase_data);
     dump((unsigned char *)&blocktemplate, sizeof(blocktemplate));
+
+    unsigned char blockhash[128];
+
+    unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 0x00, 0x48, 0xa9, 0x01, 0x00, 0x00, 0x00, 0x00                         };
+
+    uint32_t n;
+    for (n=0; n <= 10000000; n++) {
+
+    memset(blockhash, 0, sizeof(blockhash));
+    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+
+
+    blocktemplate.blocktemplate[1483] = n & 0xff;
+    blocktemplate.blocktemplate[1484] = (n >> 8) & 0xff;
+    blocktemplate.blocktemplate[1485] = (n >> 16) & 0xff;
+    blocktemplate.blocktemplate[1486] = (n >> 24) & 0xff;
+
+    int m;
+
+    if (fulltest(blockhash, target)) {
+        printf("Solution found: " YELLOW);
+        for (m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+
+        unsigned char submitblock[2 * 1488 + 1];
+        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
+        printf("submitblock: %s01%s\n", submitblock, coinbase_data);
+
+        break;
+    }
+
+    }
+
+
+
+
+    exit(1);
+
+    printf("\n\n*** [ TESTS ] ***\n\n");
 
     /*
     printf("Jansson: %s\nCurl: %s\n", JANSSON_VERSION, curl_version());
