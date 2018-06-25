@@ -518,62 +518,83 @@ int main()
     memset(blockhash_half, 0, sizeof(blockhash_half));
 
     VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+
     VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration, iddqd ;)
 
     time_t t;
     uint32_t rn;
     srand((unsigned) time(&t));
-    rn = rand() ^  0x01010101;
+    rn = rand();
     printf("random.0x%08x ", rn);
 
     struct timeval  tv1, tv2;
     gettimeofday(&tv1, NULL);
 
     for (n=0; n <= 256 * 1000000; n++) {
-    blockhash_half[32] = n & 0xff;
-    blockhash_half[32+1] = (n >> 8) & 0xff;
-    blockhash_half[32+2] = (n >> 16) & 0xff;
-    blockhash_half[32+3] = (n >> 24) & 0xff;
 
-    blockhash_half[32+4] = rn & 0xff;;
-    blockhash_half[32+5] = (rn >> 8) & 0xff;;
-    blockhash_half[32+6] = (rn >> 16) & 0xff;;
-    blockhash_half[32+7] = (rn >> 24) & 0xff;;
+        blockhash_half[32+4] = n & 0xff;
+        blockhash_half[32+5] = (n >> 8) & 0xff;
+        blockhash_half[32+6] = (n >> 16) & 0xff;
+        blockhash_half[32+7] = (n >> 24) & 0xff;
 
-    haraka512(blockhash_full, blockhash_half); // ( out, in)
-
-    //printf("orig. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-    //printf("half. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_half[31-m]); } printf(RESET "\n");
-    //printf("full. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
-
-    if (fulltest(blockhash_full, target)) {
-        printf("\n");
-        printf("Solution found: " YELLOW);
-        printf("full.%d ",n); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
-
-        blocktemplate.blocktemplate[1486-14] = blockhash_half[32];
-        blocktemplate.blocktemplate[1486-14+1] = blockhash_half[32+1];
-        blocktemplate.blocktemplate[1486-14+2] = blockhash_half[32+2];
-        blocktemplate.blocktemplate[1486-14+3] = blockhash_half[32+3];
-
-        blocktemplate.blocktemplate[1486-14+4] = blockhash_half[32+4];
-        blocktemplate.blocktemplate[1486-14+5] = blockhash_half[32+5];
-        blocktemplate.blocktemplate[1486-14+6] = blockhash_half[32+6];
-        blocktemplate.blocktemplate[1486-14+7] = blockhash_half[32+7];
+        blockhash_half[32+0] = rn & 0xff;;
+        blockhash_half[32+1] = (rn >> 8) & 0xff;;
+        blockhash_half[32+2] = (rn >> 16) & 0xff;
+        blockhash_half[32+3] = (rn >> 24) & 0xff;
 
 
-        VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+        //blockhash_half[32+8]  = 0xde;
+        //blockhash_half[32+9]  = 0xad;
+        //blockhash_half[32+10]  = 0xca;
+        //blockhash_half[32+11] = 0xfe;
+        //blockhash_half[32+12] = 0xbe;
+        //blockhash_half[32+13] = 0xda;
 
-        for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-        unsigned char submitblock[2 * 1488 + 1];
-        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
-        // here should be a curl call with submitblock, instead of this :)
-        unsigned char command[16384]; // TODO: need to calc this buffer
-        //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-        system(command);
-        //break;
-    }
+
+        haraka512(blockhash_full, blockhash_half); // ( out, in)
+
+        //printf("orig. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+        //printf("half. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_half[31-m]); } printf(RESET "\n");
+        //printf("full. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
+
+        if (fulltest(blockhash_full, target)) {
+            printf("\n");
+            printf("Solution found: " YELLOW);
+            printf("full.%d ",n); for (int m=0; m < 32; m++) {
+                if (m==4) printf(GREEN);
+                printf("%02x", blockhash_full[31-m]);
+                if (m==4) printf(RESET);
+                } printf(RESET "\n");
+
+            blocktemplate.blocktemplate[1486-14+0] = blockhash_half[32+0];
+            blocktemplate.blocktemplate[1486-14+1] = blockhash_half[32+1];
+            blocktemplate.blocktemplate[1486-14+2] = blockhash_half[32+2];
+            blocktemplate.blocktemplate[1486-14+3] = blockhash_half[32+3];
+
+            blocktemplate.blocktemplate[1486-14+4] = blockhash_half[32+4];
+            blocktemplate.blocktemplate[1486-14+5] = blockhash_half[32+5];
+            blocktemplate.blocktemplate[1486-14+6] = blockhash_half[32+6];
+            blocktemplate.blocktemplate[1486-14+7] = blockhash_half[32+7];
+
+            //blocktemplate.blocktemplate[1486-14+8] = blockhash_half[32+8];
+            //blocktemplate.blocktemplate[1486-14+9] = blockhash_half[32+9];
+            //blocktemplate.blocktemplate[1486-14+10] = blockhash_half[32+10];
+            //blocktemplate.blocktemplate[1486-14+11] = blockhash_half[32+11];
+            //blocktemplate.blocktemplate[1486-14+12] = blockhash_half[32+12];
+            //blocktemplate.blocktemplate[1486-14+13] = blockhash_half[32+13];
+
+            VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+
+            for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+            unsigned char submitblock[2 * 1488 + 1];
+            init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
+            // here should be a curl call with submitblock, instead of this :)
+            unsigned char command[16384]; // TODO: need to calc this buffer
+            printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+            sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+            //system(command);
+            //break;
+        }
 
     }
     //printf("xxM cycle end ...\n");
