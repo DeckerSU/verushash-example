@@ -11,7 +11,6 @@
 #include <jansson.h>
 #include <curl/curl.h>
 
-
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
 
@@ -72,6 +71,8 @@ char *trimwhitespace(char *str)
 struct config get_config(char *filename)
 {
         struct config configstruct;
+        memset(&configstruct, 0, sizeof(configstruct)); // (???) check release build
+
         FILE *file = fopen (filename, "r");
 
         if (file != NULL)
@@ -123,6 +124,7 @@ void VerusHash(void *result, const void *data, size_t len)
     int pos = 0, nextOffset = 64;
     unsigned char *bufPtr2 = bufPtr + nextOffset;
     unsigned char *ptr = (unsigned char *)data;
+    uint32_t count = 0;
 
     // put our last result or zero at beginning of buffer each time
     memset(bufPtr, 0, 32);
@@ -140,9 +142,57 @@ void VerusHash(void *result, const void *data, size_t len)
             memcpy(bufPtr + 32, ptr + pos, i);
             memset(bufPtr + 32 + i, 0, 32 - i);
         }
+
+        count++;
+
+        //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
         haraka512(bufPtr2, bufPtr); // ( out, in)
         bufPtr2 = bufPtr;
         bufPtr += nextOffset;
+        //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+
+
+        nextOffset *= -1;
+    }
+    memcpy(result, bufPtr, 32);
+};
+
+void VerusHashHalf(void *result, const void *data, size_t len)
+{
+    unsigned char buf[128];
+    unsigned char *bufPtr = buf;
+    int pos = 0, nextOffset = 64;
+    unsigned char *bufPtr2 = bufPtr + nextOffset;
+    unsigned char *ptr = (unsigned char *)data;
+    uint32_t count = 0;
+
+    // put our last result or zero at beginning of buffer each time
+    memset(bufPtr, 0, 32);
+
+    // digest up to 32 bytes at a time
+    for ( ; pos < len; pos += 32)
+    {
+        if (len - pos >= 32)
+        {
+            memcpy(bufPtr + 32, ptr + pos, 32);
+        }
+        else
+        {
+            int i = (int)(len - pos);
+            memcpy(bufPtr + 32, ptr + pos, i);
+            memset(bufPtr + 32 + i, 0, 32 - i);
+        }
+
+        count++;
+
+        if (count == 47) break;
+        //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+        haraka512(bufPtr2, bufPtr); // ( out, in)
+        bufPtr2 = bufPtr;
+        bufPtr += nextOffset;
+        //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+
+
         nextOffset *= -1;
     }
     memcpy(result, bufPtr, 32);
@@ -325,7 +375,7 @@ union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
     char request[256], *txt;
     snprintf(request, 256, "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"getblocktemplate\", \"params\": [%s] }", "");
     txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, request);
-    printf(YELLOW "Result: " RESET "%s\n", txt);
+    //printf(YELLOW "Result: " RESET "%s\n", txt);
 
     json_t *j_root;
     json_error_t error;
@@ -428,31 +478,106 @@ int main()
     char userhome[MAXBUF];
     snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
     configstruct = get_config(userhome);
+    //printf("%s\n", configstruct.rpcuser);
+    //printf("%s\n", configstruct.rpcpassword);
 
     char coinbase_data[MAXBUF];
+
+    while (1) {
+
     blocktemplate = getblocktemplate(coinbase_data);
-    dump((unsigned char *)&blocktemplate, sizeof(blocktemplate));
+    //dump((unsigned char *)&blocktemplate, sizeof(blocktemplate));
 
     unsigned char blockhash[128];
+    unsigned char blockhash_half[128];
+    unsigned char blockhash_full[128];
 
+    // target should read from getblocktemplate, but here is temporarily hardcoded :)
     unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x48, 0xa9, 0x01, 0x00, 0x00, 0x00, 0x00                         };
+ 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00                         };
 
     uint32_t n;
-    for (n=0; n <= 10000000; n++) {
 
-    memset(blockhash, 0, sizeof(blockhash));
-    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
-
-
+    /*
     blocktemplate.blocktemplate[1483] = n & 0xff;
     blocktemplate.blocktemplate[1484] = (n >> 8) & 0xff;
     blocktemplate.blocktemplate[1485] = (n >> 16) & 0xff;
     blocktemplate.blocktemplate[1486] = (n >> 24) & 0xff;
+    */
+
+    //blocktemplate.blocktemplate[1486-14] = 0xde;
+
+    n = 0x0;
+    blocktemplate.blocktemplate[1486-14] = n & 0xff;
+    blocktemplate.blocktemplate[1486-14+1] = (n >> 8) & 0xff;
+    blocktemplate.blocktemplate[1486-14+2] = (n >> 16) & 0xff;
+    blocktemplate.blocktemplate[1486-14+3] = (n >> 24) & 0xff;
+
+    memset(blockhash, 0, sizeof(blockhash));
+    memset(blockhash_half, 0, sizeof(blockhash_half));
+
+    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+    VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration, iddqd ;)
+
+    time_t t;
+    uint32_t rn;
+    srand((unsigned) time(&t));
+    rn = rand() ^ 0xf0f0f0f0;
+    printf("random.0x%08x\n", rn);
+
+    for (n=0; n <= 256 * 1000000; n++) {
+    blockhash_half[32] = n & 0xff;
+    blockhash_half[32+1] = (n >> 8) & 0xff;
+    blockhash_half[32+2] = (n >> 16) & 0xff;
+    blockhash_half[32+3] = (n >> 24) & 0xff;
+
+    blockhash_half[32+4] = rn & 0xff;;
+    blockhash_half[32+5] = (rn >> 8) & 0xff;;
+    blockhash_half[32+6] = (rn >> 16) & 0xff;;
+    blockhash_half[32+7] = (rn >> 24) & 0xff;;
+
+    haraka512(blockhash_full, blockhash_half); // ( out, in)
+
+    //printf("orig. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+    //printf("half. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_half[31-m]); } printf(RESET "\n");
+    //printf("full. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
+
+    if (fulltest(blockhash_full, target)) {
+        printf("Solution found: " YELLOW);
+        printf("full.%d ",n); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
+
+        blocktemplate.blocktemplate[1486-14] = blockhash_half[32];
+        blocktemplate.blocktemplate[1486-14+1] = blockhash_half[32+1];
+        blocktemplate.blocktemplate[1486-14+2] = blockhash_half[32+2];
+        blocktemplate.blocktemplate[1486-14+3] = blockhash_half[32+3];
+
+        blocktemplate.blocktemplate[1486-14+4] = blockhash_half[32+4];
+        blocktemplate.blocktemplate[1486-14+5] = blockhash_half[32+5];
+        blocktemplate.blocktemplate[1486-14+6] = blockhash_half[32+6];
+        blocktemplate.blocktemplate[1486-14+7] = blockhash_half[32+7];
+
+
+        VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+
+        for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+        unsigned char submitblock[2 * 1488 + 1];
+        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
+        // here should be a curl call with submitblock, instead of this :)
+        unsigned char command[16384]; // TODO: need to calc this buffer
+        //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+        system(command);
+        //break;
+    }
+
+    }
+    //printf("xxM cycle end ...\n");
+
 
     int m;
 
+    /*
     if (fulltest(blockhash, target)) {
         printf("Solution found: " YELLOW);
         for (m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
@@ -460,13 +585,29 @@ int main()
         unsigned char submitblock[2 * 1488 + 1];
         init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
         printf("submitblock: %s01%s\n", submitblock, coinbase_data);
+        unsigned char command[MAXBUF];
+        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+        system(command);
 
         break;
-    }
-
-    }
+    } */
 
 
+
+        /*
+        if (1) {
+
+        for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
+        unsigned char submitblock[2 * 1488 + 1];
+        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
+        unsigned char command[16384]; // TODO: need to calc this buffer
+        //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+        system(command);
+        }
+        */
+
+    } // while(true)
 
 
     exit(1);
