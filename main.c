@@ -495,7 +495,7 @@ int main()
     // target should read from getblocktemplate, but here is temporarily hardcoded :)
     unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00                         };
+ 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00                         };
 
     uint32_t n;
 
@@ -523,8 +523,11 @@ int main()
     time_t t;
     uint32_t rn;
     srand((unsigned) time(&t));
-    rn = rand() ^ 0xf0f0f0f0;
-    printf("random.0x%08x\n", rn);
+    rn = rand() ^  0x01010101;
+    printf("random.0x%08x ", rn);
+
+    struct timeval  tv1, tv2;
+    gettimeofday(&tv1, NULL);
 
     for (n=0; n <= 256 * 1000000; n++) {
     blockhash_half[32] = n & 0xff;
@@ -544,6 +547,7 @@ int main()
     //printf("full. "); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
 
     if (fulltest(blockhash_full, target)) {
+        printf("\n");
         printf("Solution found: " YELLOW);
         printf("full.%d ",n); for (int m=0; m < 32; m++) { printf("%02x", blockhash_full[31-m]); } printf(RESET "\n");
 
@@ -573,6 +577,10 @@ int main()
 
     }
     //printf("xxM cycle end ...\n");
+    gettimeofday(&tv2, NULL);
+    printf ("in %f seconds\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
 
 
     int m;
