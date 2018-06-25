@@ -11,11 +11,11 @@ AR = ar
 LD = g++
 WINDRES = windres
 
-INC = 
+INC = -Iinclude
 CFLAGS = -Wall -mavx2 -maes
 RESINC = 
-LIBDIR = 
-LIB = 
+LIBDIR = -Llib
+LIB = -lcurl -lcrypto -lpthread -lssl -lz -ljansson
 LDFLAGS = 
 
 INC_DEBUG = $(INC)
@@ -40,9 +40,9 @@ OBJDIR_RELEASE = obj/Release
 DEP_RELEASE = 
 OUT_RELEASE = bin/Release/verushash_example
 
-OBJ_DEBUG = $(OBJDIR_DEBUG)/haraka.o $(OBJDIR_DEBUG)/main.o
+OBJ_DEBUG = $(OBJDIR_DEBUG)/haraka.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/stuff.o
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/haraka.o $(OBJDIR_RELEASE)/main.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/haraka.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/stuff.o
 
 all: debug release
 
@@ -65,6 +65,9 @@ $(OBJDIR_DEBUG)/haraka.o: haraka.c
 $(OBJDIR_DEBUG)/main.o: main.c
 	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c main.c -o $(OBJDIR_DEBUG)/main.o
 
+$(OBJDIR_DEBUG)/stuff.o: stuff.c
+	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c stuff.c -o $(OBJDIR_DEBUG)/stuff.o
+
 clean_debug: 
 	rm -f $(OBJ_DEBUG) $(OUT_DEBUG)
 	rm -rf bin/Debug
@@ -86,6 +89,9 @@ $(OBJDIR_RELEASE)/haraka.o: haraka.c
 
 $(OBJDIR_RELEASE)/main.o: main.c
 	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c main.c -o $(OBJDIR_RELEASE)/main.o
+
+$(OBJDIR_RELEASE)/stuff.o: stuff.c
+	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c stuff.c -o $(OBJDIR_RELEASE)/stuff.o
 
 clean_release: 
 	rm -f $(OBJ_RELEASE) $(OUT_RELEASE)
