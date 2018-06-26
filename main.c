@@ -473,7 +473,12 @@ int main()
     gcurl_init();
 
     char userhome[MAXBUF];
-    snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
+	#ifndef _WIN32
+		snprintf(userhome, MAXBUF, "%s/.komodo/VRSC/VRSC.conf", getenv("HOME"));
+	#else
+		snprintf(userhome, MAXBUF, "%s\\Komodo\\VRSC\\VRSC.conf", getenv("APPDATA"));
+	#endif // !_WIN32
+	
     configstruct = get_config(userhome);
     //printf("%s\n", configstruct.rpcuser);
     //printf("%s\n", configstruct.rpcpassword);
@@ -538,8 +543,14 @@ int main()
             // here should be a curl call with submitblock, instead of this :)
             unsigned char command[16384]; // TODO: need to calc this buffer
             //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-            sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-            system(command);
+			#ifndef _WIN32
+				sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+			#else
+				sprintf(command, "C:\\Distr\\vrsc\\komodo-cli.exe -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
+			#endif // !_WIN32
+
+			
+			system(command);
             //break;
         }
 
