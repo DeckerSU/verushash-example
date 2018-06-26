@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif // !_WIN32
 #include <stdint.h>
 #include <ctype.h>
 
@@ -10,6 +12,42 @@
 #include "stuff.h"
 #include <jansson.h>
 #include <curl/curl.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <stdint.h> // portable: uint64_t   MSVC: __int64 
+
+#ifndef _MSC_VER
+// MSVC defines this in winsock2.h!?
+typedef struct timeval {
+	long tv_sec;
+	long tv_usec;
+} timeval;
+#endif // !_MSC_VER
+
+int gettimeofday(struct timeval * tp, struct timezone * tzp)
+{
+	// Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+	// This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+	// until 00:00:00 January 1, 1970 
+	static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+
+	SYSTEMTIME  system_time;
+	FILETIME    file_time;
+	uint64_t    time;
+
+	GetSystemTime(&system_time);
+	SystemTimeToFileTime(&system_time, &file_time);
+	time = ((uint64_t)file_time.dwLowDateTime);
+	time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+	tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+	tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+	return 0;
+}
+#endif
+
 
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
@@ -126,7 +164,6 @@ void VerusHash(void *result, const void *data, size_t len)
     unsigned char *ptr = (unsigned char *)data;
     uint32_t count = 0;
 
-
     // put our last result or zero at beginning of buffer each time
     memset(bufPtr, 0, 32);
 
@@ -147,15 +184,9 @@ void VerusHash(void *result, const void *data, size_t len)
         count++;
 
         //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
-
         haraka512(bufPtr2, bufPtr); // ( out, in)
-
         bufPtr2 = bufPtr;
         bufPtr += nextOffset;
-
-        //__builtin_prefetch(bufPtr2,1,1);
-        //__builtin_prefetch(bufPtr,0,1);
-
         //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
 
 
