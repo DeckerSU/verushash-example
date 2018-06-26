@@ -126,6 +126,7 @@ void VerusHash(void *result, const void *data, size_t len)
     unsigned char *ptr = (unsigned char *)data;
     uint32_t count = 0;
 
+
     // put our last result or zero at beginning of buffer each time
     memset(bufPtr, 0, 32);
 
@@ -146,9 +147,15 @@ void VerusHash(void *result, const void *data, size_t len)
         count++;
 
         //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+
         haraka512(bufPtr2, bufPtr); // ( out, in)
+
         bufPtr2 = bufPtr;
         bufPtr += nextOffset;
+
+        //__builtin_prefetch(bufPtr2,1,1);
+        //__builtin_prefetch(bufPtr,0,1);
+
         //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
 
 
@@ -467,12 +474,17 @@ int main()
     nmax = 16 * 1000000;
     printf("%dMh cycle.0x%08x ", nmax / 1000000, rn);
 
+    *((uint32_t *)blocktemplate.nonce + 1) = rn;
+    *((uint32_t *)blocktemplate.nonce + 2) = rand();
+    *((uint32_t *)blocktemplate.nonce + 3) = rand();
+    *((uint32_t *)blocktemplate.nonce + 4) = rand();
+    *((uint32_t *)blocktemplate.nonce + 5) = rand();
+    *((uint32_t *)blocktemplate.nonce + 6) = rand();
+    *((uint32_t *)blocktemplate.nonce + 7) = 0xdeadcafe;
+
     for (n=0; n <= nmax; n++) {
 
-    blocktemplate.nonce[0] = n & 0xff;
-    blocktemplate.nonce[1] = (n >> 8) & 0xff;
-    blocktemplate.nonce[2] = (n >> 16) & 0xff;
-    blocktemplate.nonce[3] = (n >> 24) & 0xff;
+    *((uint32_t *)blocktemplate.nonce) = n;
 
     //dump(&blocktemplate, 1487); exit(1);
 
