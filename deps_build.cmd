@@ -46,7 +46,8 @@ rem https://github.com/alexa/avs-device-sdk/wiki/Optimize-libcurl
 git clone https://github.com/curl/curl
 mkdir curl-build
 cd curl-build
-cmake -G "Visual Studio 14 2015 Win64" ../curl -DCURL_STATICLIB:BOOL=ON -DCURL_STATIC_CRT:BOOL=ON -DHTTP_ONLY:BOOL=ON -DENABLE_IPV6:BOOL=OFF -DCMAKE_USE_WINSSL:BOOL=ON -DCMAKE_INSTALL_PREFIX=%curdir%
+rem cmake -G "Visual Studio 14 2015 Win64" ../curl -DCURL_STATICLIB:BOOL=ON -DCURL_STATIC_CRT:BOOL=ON -DHTTP_ONLY:BOOL=ON -DENABLE_IPV6:BOOL=OFF -DCMAKE_USE_WINSSL:BOOL=ON -DCMAKE_INSTALL_PREFIX=%curdir%
+cmake -G "Visual Studio 14 2015 Win64" ../curl -DCURL_STATICLIB:BOOL=ON -DCURL_STATIC_CRT:BOOL=ON -DHTTP_ONLY:BOOL=ON -DENABLE_IPV6:BOOL=OFF -DCMAKE_INSTALL_PREFIX=%curdir%
 cmake -G "Visual Studio 14 2015 Win64" ../curl -LA > %curdir%\curl_options.txt
 rem cmake --build . --config Release --target libcurl 
 rem cmake -P cmake_install.cmake 
