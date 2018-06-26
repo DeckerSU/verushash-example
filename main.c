@@ -16,7 +16,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64 
+#include <stdint.h> // portable: uint64_t   MSVC: __int64
 
 #ifndef _MSC_VER
 // MSVC defines this in winsock2.h!?
@@ -30,7 +30,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 {
 	// Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
 	// This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
-	// until 00:00:00 January 1, 1970 
+	// until 00:00:00 January 1, 1970
 	static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
 
 	SYSTEMTIME  system_time;
@@ -184,7 +184,51 @@ void VerusHash(void *result, const void *data, size_t len)
         count++;
 
         //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
-        haraka512(bufPtr2, bufPtr); // ( out, in)
+        haraka512_zero(bufPtr2, bufPtr); // ( out, in)
+        bufPtr2 = bufPtr;
+        bufPtr += nextOffset;
+        //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+
+
+        nextOffset *= -1;
+    }
+    memcpy(result, bufPtr, 32);
+};
+
+// compute VerusHash for 1487 bytes blockheader (doesn't have any checks on len, just assume that len = 1487 before call)
+// without last iteration
+void VerusHashHalf(void *result, const void *data, size_t len)
+{
+    unsigned char buf[128];
+    unsigned char *bufPtr = buf;
+    int pos = 0, nextOffset = 64;
+    unsigned char *bufPtr2 = bufPtr + nextOffset;
+    unsigned char *ptr = (unsigned char *)data;
+    uint32_t count = 0;
+
+    // put our last result or zero at beginning of buffer each time
+    memset(bufPtr, 0, 32);
+
+    // digest up to 32 bytes at a time
+    for ( ; pos < len; pos += 32)
+    {
+        if (len - pos >= 32)
+        {
+            memcpy(bufPtr + 32, ptr + pos, 32);
+        }
+        else
+        {
+            int i = (int)(len - pos);
+            memcpy(bufPtr + 32, ptr + pos, i);
+            memset(bufPtr + 32 + i, 0, 32 - i);
+        }
+
+        count++;
+
+        if (count == 47) break; // exit from cycle before last iteration
+
+        //printf("[%02d.1] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
+        haraka512_zero(bufPtr2, bufPtr); // ( out, in)
         bufPtr2 = bufPtr;
         bufPtr += nextOffset;
         //printf("[%02d.2] ", count); for (int z=0; z<64; z++) printf("%02x", bufPtr[z]); printf("\n");
@@ -447,6 +491,31 @@ union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
     return t;
 };
 
+// https://bitcoin.stackexchange.com/questions/30467/what-are-the-equations-to-convert-between-bits-and-difficulty
+
+// bits -> target
+
+/*
+  "target": "000000000076deef000000000000000000000000000000000000000000000000",
+  "bits": "1b76deef",
+000000000076deef000000000000000000000000000000000000000000000000 - 32 bytes (64 ascii)
+          76deef000000000000000000000000000000000000000000000000 - 27 bytes (54 ascii)
+0x1b = 27 (dec)
+*/
+
+void bits2target(uint32_t nbits, unsigned char *target) {
+    int i;
+    memset(target, 0, 32);
+
+    target[(nbits >> 24)-1] = (nbits >> 16) & 0xff;
+    target[(nbits >> 24)-2] = (nbits >> 8) & 0xff;
+    target[(nbits >> 24)-3] = nbits & 0xff;
+
+    //printf("target: "); for (i=0; i<32; i++) printf("%02x", target[31-i]); printf("\n");
+    //printf("target: 000000000076deef000000000000000000000000000000000000000000000000\n");
+
+}
+
 #ifdef _WIN32
 	#define RANDOM_UINT32 (rand() << 16) | rand()
 #else
@@ -484,24 +553,28 @@ int main()
 	#else
 		snprintf(userhome, MAXBUF, "%s\\Komodo\\VRSC\\VRSC.conf", getenv("APPDATA"));
 	#endif // !_WIN32
-	
+
     configstruct = get_config(userhome);
     //printf("%s\n", configstruct.rpcuser);
     //printf("%s\n", configstruct.rpcpassword);
 
     char coinbase_data[MAXBUF];
 
+    unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00 };
+
     while (1) {
 
     blocktemplate = getblocktemplate(coinbase_data);
     //dump((unsigned char *)&blocktemplate, sizeof(blocktemplate));
 
-    unsigned char blockhash[128];
+    unsigned char blockhash[128], blockhash_half[128];
 
-    // target should read from getblocktemplate, but here is temporarily hardcoded :)
-    unsigned char target[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00 };
+
+    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
+    bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
+    printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
     uint32_t n, nmax;
     double time_elapsed;
@@ -513,9 +586,10 @@ int main()
     struct timeval  tv1, tv2;
     gettimeofday(&tv1, NULL);
 
-    nmax = 16 * 1000000;
+    nmax = 256 * 1000000;
     printf("%dMh cycle.0x%08x ", nmax / 1000000, rn);
 
+    /*
     *((uint32_t *)blocktemplate.nonce + 1) = rn;
     *((uint32_t *)blocktemplate.nonce + 2) = RANDOM_UINT32;
     *((uint32_t *)blocktemplate.nonce + 3) = RANDOM_UINT32;
@@ -523,15 +597,46 @@ int main()
     *((uint32_t *)blocktemplate.nonce + 5) = RANDOM_UINT32;
     *((uint32_t *)blocktemplate.nonce + 6) = RANDOM_UINT32;
     *((uint32_t *)blocktemplate.nonce + 7) = 0xdeadcafe;
+    */
 
+    // fill equihash solution field with random data
+    for (int i=3; i<sizeof(blocktemplate.solution); i++) blocktemplate.solution[i] = RANDOM_UINT32;
+
+    VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration
     for (n=0; n <= nmax; n++) {
 
-    *((uint32_t *)blocktemplate.nonce) = n;
+    //*((uint32_t *)blocktemplate.nonce) = n;
+
+    //memset(blockhash, 0, sizeof(blockhash));
+    //VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+
+
+    /*
+    blocktemplate.blocktemplate[1486 - 14] = 0xaa;
+    blocktemplate.blocktemplate[1486 - 14 + 1] = 0xab;
+    blocktemplate.blocktemplate[1486 - 14 + 2] = 0xac;
+    blocktemplate.blocktemplate[1486 - 14 + 3] = 0xad;
+    */
+
+    *((uint32_t *)blocktemplate.blocktemplate + 368) = n;
+    *((uint32_t *)blocktemplate.blocktemplate + 369) = 0x4b434544; // DECK
+    //*((uint32_t *)blocktemplate.blocktemplate + 370) = rn; // 0x00005245;
+
+    /*
+    blocktemplate.blocktemplate[1486 - 14] = n & 0xff;
+    blocktemplate.blocktemplate[1486 - 14 + 1] = (n >> 8) & 0xff;
+    blocktemplate.blocktemplate[1486 - 14 + 2] = (n >> 16) & 0xff;
+    blocktemplate.blocktemplate[1486 - 14 + 3] = (n >> 24) & 0xff;
+    */
 
     //dump(&blocktemplate, 1487); exit(1);
 
-    //memset(blockhash, 0, sizeof(blockhash));
-    VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+    memset(blockhash_half + 32, 0x0, 32);
+    memcpy(blockhash_half + 32, (unsigned char *)&blocktemplate + 1486 - 14, 15);
+
+    //dump(&blockhash_half, sizeof(blockhash_half)); exit(1);
+
+    haraka512(blockhash, blockhash_half); // ( out, in)
 
 
         if (fulltest(blockhash, target)) {
@@ -555,8 +660,8 @@ int main()
 				sprintf(command, "C:\\Distr\\vrsc\\komodo-cli.exe -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
 			#endif // !_WIN32
 
-			
 			system(command);
+
             //break;
         }
 
