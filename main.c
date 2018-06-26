@@ -447,6 +447,12 @@ union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
     return t;
 };
 
+#ifdef _WIN32
+	#define RANDOM_UINT32 (rand() << 16) | rand()
+#else
+#define RANDOM_UINT32 rand()
+#endif // _WIN32
+
 int main()
 {
 
@@ -502,7 +508,7 @@ int main()
     time_t t;
     uint32_t rn;
     srand((unsigned) time(&t));
-    rn = rand();
+    rn = RANDOM_UINT32;
 
     struct timeval  tv1, tv2;
     gettimeofday(&tv1, NULL);
@@ -511,11 +517,11 @@ int main()
     printf("%dMh cycle.0x%08x ", nmax / 1000000, rn);
 
     *((uint32_t *)blocktemplate.nonce + 1) = rn;
-    *((uint32_t *)blocktemplate.nonce + 2) = rand();
-    *((uint32_t *)blocktemplate.nonce + 3) = rand();
-    *((uint32_t *)blocktemplate.nonce + 4) = rand();
-    *((uint32_t *)blocktemplate.nonce + 5) = rand();
-    *((uint32_t *)blocktemplate.nonce + 6) = rand();
+    *((uint32_t *)blocktemplate.nonce + 2) = RANDOM_UINT32;
+    *((uint32_t *)blocktemplate.nonce + 3) = RANDOM_UINT32;
+    *((uint32_t *)blocktemplate.nonce + 4) = RANDOM_UINT32;
+    *((uint32_t *)blocktemplate.nonce + 5) = RANDOM_UINT32;
+    *((uint32_t *)blocktemplate.nonce + 6) = RANDOM_UINT32;
     *((uint32_t *)blocktemplate.nonce + 7) = 0xdeadcafe;
 
     for (n=0; n <= nmax; n++) {
