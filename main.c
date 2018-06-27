@@ -48,6 +48,19 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 }
 #endif
 
+/*
+#include <cuda_runtime.h>
+
+static int is_x64(void) {
+#if defined(__x86_64__) || defined(_WIN64) || defined(__aarch64__)
+	return 1;
+#elif defined(__amd64__) || defined(__amd64) || defined(_M_X64) || defined(_M_IA64)
+	return 1;
+#else
+	return 0;
+#endif
+}
+*/
 
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
@@ -593,6 +606,29 @@ int main()
     blocktemplate.blocktemplate[sizeof(block_41970)] = 0;
     */
 
+    /* GPU Init */
+
+    /*
+		const char* arch = is_x64() ? "64-bits" : "32-bits";
+#ifdef _MSC_VER
+		printf("    Built with VC++ %d and nVidia CUDA SDK %d.%d %s\n    BTC Donate: 161L5wAKsUiSpstkRu3f1EtdvApV9qNHYZ\n\n", msver(),
+#else
+		printf("    Built with the nVidia CUDA Toolkit %d.%d %s\n    BTC Donate: 161L5wAKsUiSpstkRu3f1EtdvApV9qNHYZ\n\n",
+#endif
+			CUDART_VERSION/1000, (CUDART_VERSION % 1000)/10, arch);
+
+    cudaError_t err;
+    int         device = 0; //atoi(argv[1]);
+    #ifdef __cplusplus
+    cudaDeviceProp props;
+    #else // !_cplusplus
+    struct cudaDeviceProp props;
+    #endif
+    err = cudaGetDeviceProperties(&props,device);
+    if (err) return -1;
+    printf("[+] %s (%2d)\n",props.name,props.multiProcessorCount);
+    cudaSetDevice(device);
+    */
 
     /* Init */
     gcurl_init();
@@ -622,7 +658,9 @@ int main()
     unsigned char blockhash[128], blockhash_half[128];
 
 
-    // bits2target(0x1dff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
+    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
+
+    // this will fail if daemon not launched ... TODO: fix bit2target if nbits == 0
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
     printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
@@ -651,9 +689,11 @@ int main()
 
     // fill equihash solution field with random data
     for (int i=3; i<sizeof(blocktemplate.solution); i++) blocktemplate.solution[i] = RANDOM_UINT32;
+    //dump(&blocktemplate, sizeof(blocktemplate)); exit(1);
 
     VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration
     for (n=0; n <= nmax; n++) {
+    //for (n=0xffffffff; n >= 0xffffffff-nmax; n--) {
 
     //*((uint32_t *)blocktemplate.nonce) = n;
 
@@ -670,7 +710,8 @@ int main()
 
     *((uint32_t *)blocktemplate.blocktemplate + 368) = n;
     *((uint32_t *)blocktemplate.blocktemplate + 369) = 0x4b434544; // DECK
-    //*((uint32_t *)blocktemplate.blocktemplate + 370) = rn; // 0x00005245;
+    *((uint32_t *)blocktemplate.blocktemplate + 370) = 0x00005245; // ER
+
 
     /*
     blocktemplate.blocktemplate[1486 - 14] = n & 0xff;
@@ -695,7 +736,7 @@ int main()
             printf("full.%d ",n); for (int m=0; m < 32; m++) {
                 if (m==4) printf(GREEN);
                 printf("%02x", blockhash[31-m]);
-                if (m==4) printf(RESET);
+                if (m==5) printf(RESET);
                 } printf(RESET "\n");
 
             for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(" - ");
