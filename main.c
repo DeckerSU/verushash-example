@@ -406,6 +406,56 @@ void reverse_hexstr(char *str)
 
 // *** iguana_utils.c ***
 
+void submitblock(union tblocktemplate blocktemplate, unsigned char *coinbase_data) {
+
+/*
+https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki#block-submission
+https://en.bitcoin.it/wiki/Getblocktemplate -> Submitting shares
+*/
+
+    uint32_t txcount = 1; // coinbase
+    unsigned char txcount_varint[3*2 + 1];
+    snprintf(txcount_varint, sizeof(txcount_varint), "%02d", txcount);
+
+    uint32_t hexdata_size = (2 * 1487) + strlen(txcount_varint) + strlen(coinbase_data) + 1;
+    unsigned char *hexdata = malloc(hexdata_size);
+
+    memset(hexdata, 0, hexdata_size);
+    init_hexbytes_noT(hexdata, blocktemplate.blocktemplate, 1487);
+    strcat(hexdata, txcount_varint);
+    strcat(hexdata, coinbase_data);
+
+    unsigned char *submitblock_format = "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"submitblock\", \"params\": [\"%s\"] }";
+
+    uint32_t submitblock_req_size = strlen(submitblock_format) + strlen(hexdata) + 1;
+    unsigned char *submitblock_req = malloc(submitblock_req_size);
+    memset(submitblock_req, 0, submitblock_req_size);
+
+    //hexdata[strlen(hexdata)-1]++; // for error debugging
+
+    snprintf(submitblock_req, submitblock_req_size, submitblock_format, hexdata);
+
+    char *txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, submitblock_req);
+
+    json_t *j_root;
+    json_error_t error;
+    json_t *j_result;
+
+    // printf("Submitblock result: %s",txt);
+
+    j_root = json_loads(txt, 0, &error);
+    free(txt);
+
+    j_result = json_object_get(j_root, "result");
+    if (json_string_value(j_result) == NULL) printf(GREEN "Ok!\n" RESET);
+        else printf(RED "%s\n" RESET,json_string_value(j_result));
+
+    json_decref(j_root);
+
+    free(hexdata);
+    free(submitblock_req);
+
+}
 
 union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
 
@@ -572,7 +622,7 @@ int main()
     unsigned char blockhash[128], blockhash_half[128];
 
 
-    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
+    // bits2target(0x1dff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
     printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
@@ -648,6 +698,10 @@ int main()
                 if (m==4) printf(RESET);
                 } printf(RESET "\n");
 
+            for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(" - ");
+            submitblock(blocktemplate, coinbase_data);
+
+            /*
             for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
             unsigned char submitblock[2 * 1488 + 1];
             init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
@@ -661,6 +715,7 @@ int main()
 			#endif // !_WIN32
 
 			system(command);
+			*/
 
             //break;
         }
