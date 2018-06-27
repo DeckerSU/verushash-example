@@ -24,6 +24,12 @@ To kill all instances use: `kill -9 $(pidof verushash_example)` .
 
 You'll need Microsoft Visual Studio **2015** for build this project. Use `deps_build.cmd` for automatically download and install dependencies, then open `verushash-example.sln` in MSVC and build project (choose Release / x64 configuration).
 
+### Mining speed
+
+![](./images/speedtest01.jpg) 
+
+**28 MH/s** even on 1 core (thread) of Intel Pentium G4500. You'll need a CPU with **AES** instructions set support. AVX/AVX2 don't needed.
+
 ### Donate
 
 VRSC address: `RFfBcWw2JxPBnRHN9N82UsD1ArVryZQUxo`
