@@ -381,6 +381,38 @@ __device__ void haraka256_sk(unsigned char *out, const unsigned char *in)
     }
 }
 
+
+extern "C" {
+void haraka512_gpu_wrapper( unsigned char *out_arr, const unsigned char *in_arr ) {
+	haraka512_gpu<<<BLOCKS,THREADS>>>(out_arr, in_arr);
+}}
+
+__global__ void haraka512_gpu(unsigned char *out_arr, const unsigned char *in_arr)
+{
+
+    int i;
+    unsigned char buf[64];
+
+    uint32_t tid = threadIdx.x * BLOCKS + blockIdx.x;
+    unsigned char *out = ((unsigned char *)out_arr  + tid * 32);
+    unsigned char  *in = ((unsigned char *)in_arr   + tid * 64); 
+
+    //printf("in = "); for (i = 0; i < 64; i++) { printf("%02x", in[i]); } printf("\n");
+    haraka512_perm(buf, in);
+    //printf("buf = "); for (i = 0; i < 64; i++) { printf("%02x", buf[i]); } printf("\n");
+
+    /* Feed-forward */
+    for (i = 0; i < 64; i++) {
+        buf[i] = buf[i] ^ in[i];
+    }
+
+    /* Truncated */
+    memcpy_decker(out,      buf + 8, 8);
+    memcpy_decker(out + 8,  buf + 24, 8);
+    memcpy_decker(out + 16, buf + 32, 8);
+    memcpy_decker(out + 24, buf + 48, 8);
+}
+
 __global__ void VerusHash_GPU(void *result_arr, const void *data_arr/*, size_t len*/)
 //__global__ void VerusHash_GPU(unsigned char *result, unsigned char *data, int len)
 {

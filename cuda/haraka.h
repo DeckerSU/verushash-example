@@ -28,4 +28,6 @@ __device__ void haraka256_sk(unsigned char *out, const unsigned char *in);
 __global__ void VerusHash_GPU(void *result, const void *data/*, size_t len*/);
 //__global__ void VerusHash_GPU(unsigned char *result, unsigned char *data, int len);
 
+__global__ void haraka512_gpu(unsigned char *out_arr, const unsigned char *in_arr);
+
 #endif
