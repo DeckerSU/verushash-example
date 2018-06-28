@@ -50,6 +50,8 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 
 #include <cuda_runtime.h>
+#include "cuda/blocks.h"
+#include "cuda/haraka_gpu.h"
 
 static int is_x64(void) {
 #if defined(__x86_64__) || defined(_WIN64) || defined(__aarch64__)
@@ -625,9 +627,18 @@ int main()
     #endif
     err = cudaGetDeviceProperties(&props,device);
     if (err) return -1;
-    printf("[+] %s (%2d)\n",props.name,props.multiProcessorCount);
+    printf("[+] %s (%2d) [%dx%d]\n",props.name,props.multiProcessorCount, BLOCKS, THREADS);
     cudaSetDevice(device);
 
+    unsigned char *haraka_out_arr      = NULL;
+    unsigned char *haraka_out_arr_cuda = NULL;
+    unsigned char *haraka_in_arr       = NULL;
+    unsigned char *haraka_in_arr_cuda  = NULL;
+
+    cudaMallocHost((void**)&haraka_out_arr, 32 * NTHREAD);
+    cudaMalloc(&haraka_out_arr_cuda,        32 * NTHREAD);
+    cudaMallocHost((void**)&haraka_in_arr,  64 * NTHREAD);
+    cudaMalloc(&haraka_in_arr_cuda,         64 * NTHREAD);
 
     /* Init */
     gcurl_init();
@@ -656,14 +667,13 @@ int main()
 
     unsigned char blockhash[128], blockhash_half[128];
 
-
     //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
 
     // this will fail if daemon not launched ... TODO: fix bit2target if nbits == 0
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
     printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
-    uint32_t n, nmax;
+    uint32_t n, m, nmax;
     double time_elapsed;
     time_t t;
     uint32_t rn;
@@ -676,89 +686,74 @@ int main()
     nmax = 256 * 1000000;
     printf("%dMh cycle.0x%08x ", nmax / 1000000, rn);
 
-    /*
-    *((uint32_t *)blocktemplate.nonce + 1) = rn;
-    *((uint32_t *)blocktemplate.nonce + 2) = RANDOM_UINT32;
-    *((uint32_t *)blocktemplate.nonce + 3) = RANDOM_UINT32;
-    *((uint32_t *)blocktemplate.nonce + 4) = RANDOM_UINT32;
-    *((uint32_t *)blocktemplate.nonce + 5) = RANDOM_UINT32;
-    *((uint32_t *)blocktemplate.nonce + 6) = RANDOM_UINT32;
-    *((uint32_t *)blocktemplate.nonce + 7) = 0xdeadcafe;
-    */
-
     // fill equihash solution field with random data
     for (int i=3; i<sizeof(blocktemplate.solution); i++) blocktemplate.solution[i] = RANDOM_UINT32;
     //dump(&blocktemplate, sizeof(blocktemplate)); exit(1);
 
     VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration
-    for (n=0; n <= nmax; n++) {
-    //for (n=0xffffffff; n >= 0xffffffff-nmax; n--) {
 
-    //*((uint32_t *)blocktemplate.nonce) = n;
+    for (n=0; n <= nmax / NTHREAD; n++) {
 
-    //memset(blockhash, 0, sizeof(blockhash));
-    //VerusHash(blockhash, blocktemplate.blocktemplate, 1487);
+    for (m=0; m < NTHREAD; m++) {
+        *((uint32_t *)blocktemplate.blocktemplate + 368) = n * NTHREAD + m;
+        *((uint32_t *)blocktemplate.blocktemplate + 369) = 0x4b434544; // DECK
+        *((uint32_t *)blocktemplate.blocktemplate + 370) = 0x00005245; // ER
 
+        //dump(&blocktemplate, 1487); exit(1);
 
-    /*
-    blocktemplate.blocktemplate[1486 - 14] = 0xaa;
-    blocktemplate.blocktemplate[1486 - 14 + 1] = 0xab;
-    blocktemplate.blocktemplate[1486 - 14 + 2] = 0xac;
-    blocktemplate.blocktemplate[1486 - 14 + 3] = 0xad;
-    */
+        memset(blockhash_half + 32, 0x0, 32);
+        memcpy(blockhash_half + 32, (unsigned char *)&blocktemplate + 1486 - 14, 15);
 
-    *((uint32_t *)blocktemplate.blocktemplate + 368) = n;
-    *((uint32_t *)blocktemplate.blocktemplate + 369) = 0x4b434544; // DECK
-    *((uint32_t *)blocktemplate.blocktemplate + 370) = 0x00005245; // ER
+        // blockhash_half - is a member of haraka_in_array (first 32 bytes of blockhash_half is hashing by CPU via VerusHashHalf, second 32 bytes - we added on lines above)
+        // now we need to copy 64 bytes of blockhash_half in proper place of haraka_in_arr according to (m) thread number.
 
-
-    /*
-    blocktemplate.blocktemplate[1486 - 14] = n & 0xff;
-    blocktemplate.blocktemplate[1486 - 14 + 1] = (n >> 8) & 0xff;
-    blocktemplate.blocktemplate[1486 - 14 + 2] = (n >> 16) & 0xff;
-    blocktemplate.blocktemplate[1486 - 14 + 3] = (n >> 24) & 0xff;
-    */
-
-    //dump(&blocktemplate, 1487); exit(1);
-
-    memset(blockhash_half + 32, 0x0, 32);
-    memcpy(blockhash_half + 32, (unsigned char *)&blocktemplate + 1486 - 14, 15);
+        memcpy(haraka_in_arr + m * 64, blockhash_half, 64);
+    }
 
     //dump(&blockhash_half, sizeof(blockhash_half)); exit(1);
+    //dump(haraka_in_arr, 64 * NTHREAD); exit(1);
 
+    cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
+
+    //haraka512(blockhash, blockhash_half); // ( out, in)
     haraka512(blockhash, blockhash_half); // ( out, in)
 
+    printf("\nCPU indata: "); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
+    printf("CPU result: "); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
+    printf("GPU indata: "); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + z)); } printf("\n");
 
-        if (fulltest(blockhash, target)) {
+    haraka512_gpu_wrapper(haraka_out_arr_cuda, haraka_in_arr_cuda); // ( out, in)
+
+    err = cudaDeviceSynchronize();
+    if (err) {
+        printf("Err = %d\n",err);
+    exit(err);
+    }
+
+    memset(haraka_out_arr, 0, 32 * NTHREAD);
+    cudaMemcpy(haraka_out_arr, haraka_out_arr_cuda, 32 * NTHREAD, cudaMemcpyDeviceToHost);
+    printf("GPU result: "); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + 31-z)); } printf("\n");
+
+    dump(haraka_out_arr, 32 * NTHREAD); // exit(1);
+
+    for (m=0; m < NTHREAD; m++) {
+        //if (fulltest(haraka_out_arr + m * 32, target)) {
+        if (1) {
             printf("\n");
             printf("Solution found: " YELLOW);
-            printf("full.%d ",n); for (int m=0; m < 32; m++) {
-                if (m==4) printf(GREEN);
-                printf("%02x", blockhash[31-m]);
-                if (m==5) printf(RESET);
+            printf("full.%d ",n); for (int z=0; z < 32; z++) {
+                if (z==4) printf(GREEN);
+                printf("%02x", *(haraka_out_arr + m * 32 + 31-z));
+                if (z==5) printf(RESET);
                 } printf(RESET "\n");
 
-            for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(" - ");
-            submitblock(blocktemplate, coinbase_data);
+            for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf(" - ");
+            //if(0)
+                submitblock(blocktemplate, coinbase_data);
+            exit(1);
 
-            /*
-            for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-            unsigned char submitblock[2 * 1488 + 1];
-            init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
-            // here should be a curl call with submitblock, instead of this :)
-            unsigned char command[16384]; // TODO: need to calc this buffer
-            //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-			#ifndef _WIN32
-				sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-			#else
-				sprintf(command, "C:\\Distr\\vrsc\\komodo-cli.exe -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-			#endif // !_WIN32
-
-			system(command);
-			*/
-
-            //break;
         }
+    }
 
     }
     //printf("xxM cycle end ...\n");
@@ -767,39 +762,6 @@ int main()
          (double) (tv2.tv_sec - tv1.tv_sec);
     printf ("in %f seconds, %f H/s\n",
          time_elapsed, (double) (nmax / time_elapsed));
-
-
-    int m;
-
-    /*
-    if (fulltest(blockhash, target)) {
-        printf("Solution found: " YELLOW);
-        for (m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-
-        unsigned char submitblock[2 * 1488 + 1];
-        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
-        printf("submitblock: %s01%s\n", submitblock, coinbase_data);
-        unsigned char command[MAXBUF];
-        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-        system(command);
-
-        break;
-    } */
-
-
-
-        /*
-        if (1) {
-
-        for (int m=0; m < 32; m++) { printf("%02x", blockhash[31-m]); } printf(RESET "\n");
-        unsigned char submitblock[2 * 1488 + 1];
-        init_hexbytes_noT(submitblock, blocktemplate.blocktemplate, 1487);
-        unsigned char command[16384]; // TODO: need to calc this buffer
-        //printf("/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-        sprintf(command, "/home/decker/ssd_nvme/vrsc/VerusCoin/src/komodo-cli -ac_name=VRSC submitblock \"%s01%s\"\n", submitblock, coinbase_data);
-        system(command);
-        }
-        */
 
     } // while(true)
 
