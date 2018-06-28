@@ -96,12 +96,17 @@ int main(int argc, char *argv[])
   uint32_t nmax = 256 * 1000000;
   uint32_t value;
 
-  for (k=0; k < nmax / NTHREAD; k++) { // main loop
-
+  k = 0;
+  for (k=0; k < nmax / NTHREAD; k++) 
+  { // main loop
+ 
+  
   for (i=0; i<NTHREAD; i++) {
-  	// fill arrays in local host memory
+        memset(haraka_in_arr + i * 64, 0x00, 32); // first 32 bytes contains important data, fill it by 0x00 here for tests only
+	// fill arrays in local host memory
   	value = (k * NTHREAD + i);
         haraka_in_arr[i * 64 + 32] = value;
+        //printf("GPU indata[%d]: ", i); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + i * 64 + z)); } printf("\n");
   }
 
   cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
@@ -114,7 +119,12 @@ int main(int argc, char *argv[])
     exit(err);
   }
 
-  cudaMemcpy(haraka_out_arr, haraka_out_arr_cuda , 64 * NTHREAD, cudaMemcpyDeviceToHost);
+  cudaMemcpy(haraka_out_arr, haraka_out_arr_cuda , 32 * NTHREAD, cudaMemcpyDeviceToHost);
+
+  for (i=0; i<NTHREAD; i++) {
+        //printf("GPU result[%d]: ", i); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + i * 32 + z)); } printf("\n");
+  }
+
 
   } // main loop
 
@@ -125,4 +135,35 @@ int main(int argc, char *argv[])
   printf ("in %f seconds, %f H/s\n",
          time_elapsed, (double) (nmax / time_elapsed));
 
+
+  // print first 9 result from last iter to make sure it equal test results vector
+  for (i=0; i<9; i++) {
+        printf("GPU result[%d]: ", i); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + i * 32 + z)); } printf("\n");
+  }
+
 }
+
+/*
+
+Test data:
+
+GPU indata[0]: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000  
+GPU indata[1]: 00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000  
+GPU indata[2]: 00000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000  
+GPU indata[3]: 00000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000  
+GPU indata[4]: 00000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000  
+GPU indata[5]: 00000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000  
+GPU indata[6]: 00000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000  
+GPU indata[7]: 00000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000  
+GPU indata[8]: 00000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000  
+GPU result[0]: 3636363636363636363636363636363636363636363636363636363636363636                                                                  
+GPU result[1]: c7c3bc8108084e24d0cb4b02300f35aa8bce0f0065f269ebe4378e78fcef8e1f                                                                  
+GPU result[2]: 26a9f97a73692253918382bd401f4e3d502b9f8c1f5142b1cb37399e77ec456e                                                                  
+GPU result[3]: f838071ca2bc19ac3a6277a9786b9d3bdf827274847de835de2c9da035fe29a5                                                                  
+GPU result[4]: f2c8e2ed4b68798e9de1071f891d3e34da2a87314f0dfa38a8fc5dfa8e2fca84                                                                  
+GPU result[5]: f8f8aee17130e77cf4aee7da016fb00aba05d4d5a8550371b6ce8fdf74202740                                                                  
+GPU result[6]: d170aadcb072dd3c0e9dbed1eae567dbbe8c9d82032649dff0da9fbae3989913                                                                  
+GPU result[7]: 127f8873e5e4e92612ff6d359ff2a7d315f64dd0c03545964a4e2bb2039441ad                                                                  
+GPU result[8]: fdce98e3981c442e3166143aeb2c86d5804be296af76486ef95214c2eb4bdd52                                                                  
+
+*/
