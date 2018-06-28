@@ -9,3 +9,5 @@ cuda/main.exe
 *.depend
 *.layout
 options.txt
+Cmake/
+x64/
