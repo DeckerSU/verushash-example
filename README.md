@@ -1,4 +1,4 @@
-###Linux
+### Linux
 
 ```
 git clone https://github.com/DeckerSU/verushash-example # for HTTPS connection
