@@ -48,7 +48,6 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 }
 #endif
 
-
 #include <cuda_runtime.h>
 #include "cuda/blocks.h"
 #include "cuda/haraka_gpu.h"
@@ -62,6 +61,20 @@ static int is_x64(void) {
 	return 0;
 #endif
 }
+
+#ifdef _MSC_VER
+__inline int msver(void) {
+	switch (_MSC_VER) {
+	case 1500: return 2008;
+	case 1600: return 2010;
+	case 1700: return 2012;
+	case 1800: return 2013;
+	case 1900: return 2015;
+	default: return (_MSC_VER / 100);
+	}
+}
+#endif
+
 
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
@@ -667,7 +680,7 @@ int main()
 
     unsigned char blockhash[128], blockhash_half[128];
 
-    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
+    //bits2target(0x1dff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
 
     // this will fail if daemon not launched ... TODO: fix bit2target if nbits == 0
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate

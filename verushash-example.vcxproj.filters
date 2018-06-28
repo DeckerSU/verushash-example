@@ -33,4 +33,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="cuda\haraka.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+  </ItemGroup>
 </Project>
