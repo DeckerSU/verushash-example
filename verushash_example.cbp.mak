@@ -15,7 +15,7 @@ INC = -Iinclude
 CFLAGS = -Wall -mavx2 -maes
 RESINC = 
 LIBDIR = -Llib
-LIB = -lcurl -lcrypto -lpthread -lssl -lz -ljansson
+LIB = -lcurl -lcrypto -lpthread -lssl -lz -ljansson -lcudart -lcuda cuda/kernel.o
 LDFLAGS = 
 
 INC_DEBUG = $(INC)

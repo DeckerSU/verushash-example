@@ -48,7 +48,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 }
 #endif
 
-/*
+
 #include <cuda_runtime.h>
 
 static int is_x64(void) {
@@ -60,7 +60,6 @@ static int is_x64(void) {
 	return 0;
 #endif
 }
-*/
 
 #define SER_GETHASH (1 << 2)
 static const int PROTOCOL_VERSION = 170003;
@@ -608,12 +607,12 @@ int main()
 
     /* GPU Init */
 
-    /*
+
 		const char* arch = is_x64() ? "64-bits" : "32-bits";
 #ifdef _MSC_VER
-		printf("    Built with VC++ %d and nVidia CUDA SDK %d.%d %s\n    BTC Donate: 161L5wAKsUiSpstkRu3f1EtdvApV9qNHYZ\n\n", msver(),
+		printf("    Built with VC++ %d and nVidia CUDA SDK %d.%d %s\n    VRSC Donate: RFfBcWw2JxPBnRHN9N82UsD1ArVryZQUxo\n\n", msver(),
 #else
-		printf("    Built with the nVidia CUDA Toolkit %d.%d %s\n    BTC Donate: 161L5wAKsUiSpstkRu3f1EtdvApV9qNHYZ\n\n",
+		printf("    Built with the nVidia CUDA Toolkit %d.%d %s\n    VRSC Donate: RFfBcWw2JxPBnRHN9N82UsD1ArVryZQUxo\n\n",
 #endif
 			CUDART_VERSION/1000, (CUDART_VERSION % 1000)/10, arch);
 
@@ -628,7 +627,7 @@ int main()
     if (err) return -1;
     printf("[+] %s (%2d)\n",props.name,props.multiProcessorCount);
     cudaSetDevice(device);
-    */
+
 
     /* Init */
     gcurl_init();
