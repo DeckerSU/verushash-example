@@ -750,6 +750,10 @@ int main()
                 } printf(RESET "\n");
 
             //for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf(" - ");
+
+            // we already have hash, now we should correctly fill blocktemplate, according data for this hash
+            memcpy((unsigned char *)&blocktemplate + 1486 - 14, haraka_in_arr + m * 64 + 32, 15);
+
             if(1)
                 submitblock(blocktemplate, coinbase_data);
             //exit(1);
