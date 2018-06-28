@@ -708,6 +708,12 @@ int main()
         // now we need to copy 64 bytes of blockhash_half in proper place of haraka_in_arr according to (m) thread number.
 
         memcpy(haraka_in_arr + m * 64, blockhash_half, 64);
+
+        haraka512(blockhash, blockhash_half); // ( out, in)
+        printf("\nCPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
+        printf("CPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
+        printf("GPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + m * 64 + z)); } printf("\n");
+
     }
 
     //dump(&blockhash_half, sizeof(blockhash_half)); exit(1);
@@ -716,12 +722,6 @@ int main()
     cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
 
     //haraka512(blockhash, blockhash_half); // ( out, in)
-    haraka512(blockhash, blockhash_half); // ( out, in)
-
-    printf("\nCPU indata: "); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
-    printf("CPU result: "); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
-    printf("GPU indata: "); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + z)); } printf("\n");
-
     haraka512_gpu_wrapper(haraka_out_arr_cuda, haraka_in_arr_cuda); // ( out, in)
 
     err = cudaDeviceSynchronize();
@@ -732,11 +732,13 @@ int main()
 
     memset(haraka_out_arr, 0, 32 * NTHREAD);
     cudaMemcpy(haraka_out_arr, haraka_out_arr_cuda, 32 * NTHREAD, cudaMemcpyDeviceToHost);
-    printf("GPU result: "); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + 31-z)); } printf("\n");
 
-    dump(haraka_out_arr, 32 * NTHREAD); // exit(1);
+    //dump(haraka_out_arr, 32 * NTHREAD); exit(1);
 
     for (m=0; m < NTHREAD; m++) {
+
+        printf("GPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf("\n");
+
         //if (fulltest(haraka_out_arr + m * 32, target)) {
         if (1) {
             printf("\n");
@@ -747,13 +749,14 @@ int main()
                 if (z==5) printf(RESET);
                 } printf(RESET "\n");
 
-            for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf(" - ");
-            //if(0)
+            //for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf(" - ");
+            if(1)
                 submitblock(blocktemplate, coinbase_data);
-            exit(1);
+            //exit(1);
 
         }
     }
+    exit(1);
 
     }
     //printf("xxM cycle end ...\n");
