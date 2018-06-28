@@ -44,9 +44,14 @@ OBJ_DEBUG = $(OBJDIR_DEBUG)/haraka.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/stuf
 
 OBJ_RELEASE = $(OBJDIR_RELEASE)/haraka.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/stuff.o
 
-all: debug release
+all: before_build build_debug build_release after_build
 
 clean: clean_debug clean_release
+
+before_build: 
+	./compile_kernel.sh
+
+after_build: 
 
 before_debug: 
 	test -d bin/Debug || mkdir -p bin/Debug
@@ -54,7 +59,9 @@ before_debug:
 
 after_debug: 
 
-debug: before_debug out_debug after_debug
+build_debug: before_debug out_debug after_debug
+
+debug: before_build build_debug after_build
 
 out_debug: before_debug $(OBJ_DEBUG) $(DEP_DEBUG)
 	$(LD) $(LIBDIR_DEBUG) -o $(OUT_DEBUG) $(OBJ_DEBUG)  $(LDFLAGS_DEBUG) $(LIB_DEBUG)
@@ -79,7 +86,9 @@ before_release:
 
 after_release: 
 
-release: before_release out_release after_release
+build_release: before_release out_release after_release
+
+release: before_build build_release after_build
 
 out_release: before_release $(OBJ_RELEASE) $(DEP_RELEASE)
 	$(LD) $(LIBDIR_RELEASE) -o $(OUT_RELEASE) $(OBJ_RELEASE)  $(LDFLAGS_RELEASE) $(LIB_RELEASE)
@@ -98,5 +107,5 @@ clean_release:
 	rm -rf bin/Release
 	rm -rf $(OBJDIR_RELEASE)
 
-.PHONY: before_debug after_debug clean_debug before_release after_release clean_release
+.PHONY: before_build after_build before_debug after_debug clean_debug before_release after_release clean_release
 

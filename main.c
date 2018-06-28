@@ -627,7 +627,7 @@ int main()
     #endif
     err = cudaGetDeviceProperties(&props,device);
     if (err) return -1;
-    printf("[+] %s (%2d) [%dx%d]\n",props.name,props.multiProcessorCount, BLOCKS, THREADS);
+    printf("[+] %s (%2d) [t.%dxb.%d]\n",props.name,props.multiProcessorCount, THREADS, BLOCKS);
     cudaSetDevice(device);
 
     unsigned char *haraka_out_arr      = NULL;
@@ -709,10 +709,12 @@ int main()
 
         memcpy(haraka_in_arr + m * 64, blockhash_half, 64);
 
+        /*
         haraka512(blockhash, blockhash_half); // ( out, in)
         printf("\nCPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
         printf("CPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
         printf("GPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + m * 64 + z)); } printf("\n");
+        */
 
     }
 
@@ -736,11 +738,12 @@ int main()
     //dump(haraka_out_arr, 32 * NTHREAD); exit(1);
 
     for (m=0; m < NTHREAD; m++) {
-
+        /*
         printf("GPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf("\n");
+        */
 
-        //if (fulltest(haraka_out_arr + m * 32, target)) {
-        if (1) {
+        if (fulltest(haraka_out_arr + m * 32, target)) {
+        //if (1) {
             printf("\n");
             printf("Solution found: " YELLOW);
             printf("full.%d ",n); for (int z=0; z < 32; z++) {
@@ -753,14 +756,12 @@ int main()
 
             // we already have hash, now we should correctly fill blocktemplate, according data for this hash
             memcpy((unsigned char *)&blocktemplate + 1486 - 14, haraka_in_arr + m * 64 + 32, 15);
-
-            if(1)
-                submitblock(blocktemplate, coinbase_data);
+            submitblock(blocktemplate, coinbase_data);
             //exit(1);
 
         }
     }
-    exit(1);
+    //exit(1);
 
     }
     //printf("xxM cycle end ...\n");

@@ -45,6 +45,10 @@
 			<Add library="cuda/kernel.o" />
 			<Add directory="lib" />
 		</Linker>
+		<ExtraCommands>
+			<Add before="./compile_kernel.sh" />
+		</ExtraCommands>
+		<Unit filename="cuda/haraka_gpu.h" />
 		<Unit filename="haraka.c">
 			<Option compilerVar="CC" />
 		</Unit>
