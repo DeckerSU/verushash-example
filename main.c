@@ -449,21 +449,23 @@ https://en.bitcoin.it/wiki/Getblocktemplate -> Submitting shares
     snprintf(submitblock_req, submitblock_req_size, submitblock_format, hexdata);
 
     char *txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, submitblock_req);
+    if (txt) {
 
-    json_t *j_root;
-    json_error_t error;
-    json_t *j_result;
+        json_t *j_root;
+        json_error_t error;
+        json_t *j_result;
 
-    // printf("Submitblock result: %s",txt);
+        // printf("Submitblock result: %s",txt);
 
-    j_root = json_loads(txt, 0, &error);
-    free(txt);
+        j_root = json_loads(txt, 0, &error);
+        free(txt);
 
-    j_result = json_object_get(j_root, "result");
-    if (json_string_value(j_result) == NULL) printf(GREEN "Ok!\n" RESET);
-        else printf(RED "%s\n" RESET,json_string_value(j_result));
+        j_result = json_object_get(j_root, "result");
+        if (json_string_value(j_result) == NULL) printf(GREEN "Ok!\n" RESET);
+            else printf(RED "%s\n" RESET,json_string_value(j_result));
 
-    json_decref(j_root);
+        json_decref(j_root);
+    }
 
     free(hexdata);
     free(submitblock_req);
@@ -479,6 +481,8 @@ union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
     char request[256], *txt;
     snprintf(request, 256, "{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", \"method\": \"getblocktemplate\", \"params\": [%s] }", "");
     txt = daemon_request("127.0.0.1", configstruct.rpcport, configstruct.rpcuser, configstruct.rpcpassword, request);
+    if (txt) {
+
     //printf(YELLOW "Result: " RESET "%s\n", txt);
 
     json_t *j_root;
@@ -550,6 +554,7 @@ union tblocktemplate getblocktemplate(unsigned char *coinbase_data) {
     t.blocktemplate[0x8e] = 0x05;
 
     json_decref(j_root);
+    }
 
     return t;
 };
@@ -570,9 +575,11 @@ void bits2target(uint32_t nbits, unsigned char *target) {
     int i;
     memset(target, 0, 32);
 
+    if (nbits !=0) {
     target[(nbits >> 24)-1] = (nbits >> 16) & 0xff;
     target[(nbits >> 24)-2] = (nbits >> 8) & 0xff;
     target[(nbits >> 24)-3] = nbits & 0xff;
+    }
 
     //printf("target: "); for (i=0; i<32; i++) printf("%02x", target[31-i]); printf("\n");
     //printf("target: 000000000076deef000000000000000000000000000000000000000000000000\n");
@@ -660,7 +667,12 @@ int main()
 
     //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
 
-    // this will fail if daemon not launched ... TODO: fix bit2target if nbits == 0
+    if (blocktemplate.nbits == 0) {
+        printf(RED "Error: " RESET "Seems we failed to acquire data from daemon, waiting 60 sec.\n");
+        sleep(60);
+        continue;
+    }
+
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
     printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
