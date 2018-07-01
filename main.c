@@ -701,6 +701,10 @@ int main()
 
     // fill equihash solution field with random data
     for (int i=3; i<sizeof(blocktemplate.solution); i++) blocktemplate.solution[i] = RANDOM_UINT32;
+
+    // fill nonce with a random data
+    // for (int i=0; i < 8; i++) *((uint32_t *)blocktemplate.nonce + i) = RANDOM_UINT32;
+
     //dump(&blocktemplate, sizeof(blocktemplate)); exit(1);
 
     VerusHashHalf(blockhash_half, blocktemplate.blocktemplate, 1487); // full VerusHash without last iteration
