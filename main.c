@@ -135,18 +135,20 @@ struct config get_config(char *filename)
                 {
                         char *cfline, *key;
                         cfline = strstr((char *)line,DELIM);
-                        *cfline = 0;
-                        key = trimwhitespace(line);
-                        //printf("[1] key = %s\n",key);
-                        cfline = cfline + strlen(DELIM);
-                        cfline = trimwhitespace(cfline);
-                        //printf("[2] value = %s\n",cfline);
-                        if (strcmp(key,"rpcuser") == 0)
-                            memcpy(configstruct.rpcuser,cfline,strlen(cfline));
-                        if (strcmp(key,"rpcpassword") == 0)
-                            memcpy(configstruct.rpcpassword,cfline,strlen(cfline));
-                        if (strcmp(key,"rpcport") == 0)
-                            configstruct.rpcport = atoi(cfline);
+                        if (cfline) {
+                            *cfline = 0;
+                            key = trimwhitespace(line);
+                            //printf("[1] key = %s\n",key);
+                            cfline = cfline + strlen(DELIM);
+                            cfline = trimwhitespace(cfline);
+                            //printf("[2] value = %s\n",cfline);
+                            if (strcmp(key,"rpcuser") == 0)
+                                memcpy(configstruct.rpcuser,cfline,strlen(cfline));
+                            if (strcmp(key,"rpcpassword") == 0)
+                                memcpy(configstruct.rpcpassword,cfline,strlen(cfline));
+                            if (strcmp(key,"rpcport") == 0)
+                                configstruct.rpcport = atoi(cfline);
+                        }
                         i++;
                 }
                 fclose(file);
