@@ -47,7 +47,9 @@ del *.o
 del  *.obj
 nvcc -Xptxas -dlcm=ca -Xptxas -dscm=cs -arch=sm_35 -c cuda/haraka.cu -o cuda/kernel.o 
 cl /c haraka.c main.c stuff.c /Iinclude /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\include" /DCURL_STATICLIB 
-link /NODEFAULTLIB:LIBCMT /MACHINE:X64 /nologo cuda/kernel.o haraka.obj main.obj stuff.obj kernel32.lib advapi32.lib Ws2_32.lib libcurl.lib cudart.lib jansson.lib legacy_stdio_definitions.lib /OUT:verushash_example.exe /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\lib\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\um\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\km\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\ucrt\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\km\x64" /LIBPATH:"./lib"
+rem /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\um\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\km\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\ucrt\x64" /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\km\x64"
+rem legacy_stdio_definitions.lib 
+link /NODEFAULTLIB:LIBCMT /MACHINE:X64 /nologo cuda/kernel.o haraka.obj main.obj stuff.obj kernel32.lib advapi32.lib Ws2_32.lib libcurl.lib cudart.lib jansson.lib /OUT:verushash_example.exe /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\lib\x64" /LIBPATH:"./lib"
 
 
 
