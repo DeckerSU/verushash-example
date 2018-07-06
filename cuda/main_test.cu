@@ -46,7 +46,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 int main(int argc, char *argv[])
 {
 
-  printf("VerusHash Bruteforcer v0.01 by \x1B[01;32mDecker\x1B[0m (q) 2018\n\n");
+  printf("VerusHash Bruteforcer v0.02 by \x1B[01;32mDecker\x1B[0m and \x1B[01;33mOcean\x1B[0m (q) 2018\n\n");
   printf("[+] It's just a beginning ... \n");
   printf("[*] NTHREAD.%d \n", NTHREAD);
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     return -1;
  
   printf("%s (%2d)\n",props.name,props.multiProcessorCount);
- 
+
   cudaSetDevice(device);
   //cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
   //cudaDeviceReset();
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 
   /* Check VerusHash */
 
-  int i,j,k;
+  int i,k;
 
   struct timeval  tv1, tv2;
 
@@ -85,33 +85,45 @@ int main(int argc, char *argv[])
 
   unsigned char *haraka_out_arr      = NULL;
   unsigned char *haraka_out_arr_cuda = NULL;
-  unsigned char *haraka_in_arr       = NULL;
-  unsigned char *haraka_in_arr_cuda  = NULL;
+//  unsigned char *haraka_in_arr       = NULL;
+//  unsigned char *haraka_in_arr_cuda   = NULL;
 
   cudaMallocHost((void**)&haraka_out_arr, 32 * NTHREAD);
   cudaMalloc(&haraka_out_arr_cuda,        32 * NTHREAD);
-  cudaMallocHost((void**)&haraka_in_arr,  64 * NTHREAD);
-  cudaMalloc(&haraka_in_arr_cuda,         64 * NTHREAD);
+
+//  cudaMallocHost((void**)&haraka_in_arr,  64 * NTHREAD);
+//  cudaMalloc(&haraka_in_arr_cuda,         64 * NTHREAD);
 
   uint32_t nmax = 256 * 1000000;
+//  uint32_t nmax = NTHREAD * 10000; 
   uint32_t value;
 
   k = 0;
   for (k=0; k < nmax / NTHREAD; k++) 
   { // main loop
- 
-  
-  for (i=0; i<NTHREAD; i++) {
-        memset(haraka_in_arr + i * 64, 0x00, 32); // first 32 bytes contains important data, fill it by 0x00 here for tests only
+
+//  memset(haraka_in_arr, 0x00, 64 * NTHREAD);
+
+//  for (i=0; i<NTHREAD; i++) {
 	// fill arrays in local host memory
-  	value = (k * NTHREAD + i);
-        haraka_in_arr[i * 64 + 32] = value;
+//  	value = (k * NTHREAD + i);
+//        haraka_in_arr[i * 64 + 32] = value;
         //printf("GPU indata[%d]: ", i); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + i * 64 + z)); } printf("\n");
-  }
+//  }
 
-  cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
+//  cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
 
-  haraka512_gpu<<<BLOCKS,THREADS>>>(haraka_out_arr_cuda, haraka_in_arr_cuda);
+  uint32_t b0 = 0xb0b0b0b0;
+  uint32_t b1 = 0xb1b1b1b1;
+  uint32_t b2 = 0xb2b2b2b2;
+  uint32_t b3 = 0xb3b3b3b3;
+  uint32_t b4 = 0xb4b4b4b4;
+  uint32_t b5 = 0xb5b5b5b5;
+  uint32_t b6 = 0xb6b6b6b6;
+  uint32_t b7 = 0xb7b7b7b7;
+
+  //haraka512_gpu<<<BLOCKS,THREADS>>>(haraka_out_arr_cuda, b0, b1, b2, b3, b4, b5, b6, b7, k * NTHREAD);
+  haraka512_gpu<<<BLOCKS,THREADS>>>(haraka_out_arr_cuda, b0, b1, b2, b3, b4, b5, b6, b7, k * NTHREAD);
 
   err = cudaDeviceSynchronize();
   if (err) {
@@ -121,9 +133,9 @@ int main(int argc, char *argv[])
 
   cudaMemcpy(haraka_out_arr, haraka_out_arr_cuda , 32 * NTHREAD, cudaMemcpyDeviceToHost);
 
-  for (i=0; i<NTHREAD; i++) {
+//  for (i=0; i<NTHREAD; i++) {
         //printf("GPU result[%d]: ", i); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + i * 32 + z)); } printf("\n");
-  }
+//  }
 
 
   } // main loop
@@ -141,6 +153,10 @@ int main(int argc, char *argv[])
         printf("GPU result[%d]: ", i); for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + i * 32 + z)); } printf("\n");
   }
 
+  cudaFreeHost(haraka_out_arr);
+//  cudaFree(haraka_out_arr_cuda);
+//  cudaFreeHost(haraka_in_arr);
+//  cudaFree(haraka_in_arr_cuda);
 }
 
 /*

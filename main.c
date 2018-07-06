@@ -650,8 +650,8 @@ int main()
 
     cudaMallocHost((void**)&haraka_out_arr, 32 * NTHREAD);
     cudaMalloc(&haraka_out_arr_cuda,        32 * NTHREAD);
-    cudaMallocHost((void**)&haraka_in_arr,  64 * NTHREAD);
-    cudaMalloc(&haraka_in_arr_cuda,         64 * NTHREAD);
+    //cudaMallocHost((void**)&haraka_in_arr,  64 * NTHREAD);
+    //cudaMalloc(&haraka_in_arr_cuda,         64 * NTHREAD);
 
     /* Init */
     gcurl_init();
@@ -707,6 +707,7 @@ int main()
 
     for (n=0; n <= nmax / NTHREAD; n++) {
 
+    /*
     for (m=0; m < NTHREAD; m++) {
         *((uint32_t *)blocktemplate.blocktemplate + 368) = n * NTHREAD + m;
         *((uint32_t *)blocktemplate.blocktemplate + 369) = 0x4b434544; // DECK
@@ -722,22 +723,34 @@ int main()
 
         memcpy(haraka_in_arr + m * 64, blockhash_half, 64);
 
-        /*
-        haraka512(blockhash, blockhash_half); // ( out, in)
-        printf("\nCPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
-        printf("CPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
-        printf("GPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + m * 64 + z)); } printf("\n");
-        */
 
-    }
+        //haraka512(blockhash, blockhash_half); // ( out, in)
+        //printf("\nCPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(blockhash_half + z)); } printf("\n");
+        //printf("CPU result[%d]: ", m); for (int z=0; z < 32; z++) { printf("%02x", *(blockhash + 31-z)); } printf("\n");
+        //printf("GPU indata[%d]: ", m); for (int z=0; z < 64; z++) { printf("%02x", *(haraka_in_arr + m * 64 + z)); } printf("\n");
+
+
+    } */
+
+    uint32_t b0 = *((uint32_t *) blockhash_half + 0);
+    uint32_t b1 = *((uint32_t *) blockhash_half + 1);
+    uint32_t b2 = *((uint32_t *) blockhash_half + 2);
+    uint32_t b3 = *((uint32_t *) blockhash_half + 3);
+    uint32_t b4 = *((uint32_t *) blockhash_half + 4);
+    uint32_t b5 = *((uint32_t *) blockhash_half + 5);
+    uint32_t b6 = *((uint32_t *) blockhash_half + 6);
+    uint32_t b7 = *((uint32_t *) blockhash_half + 7);
 
     //dump(&blockhash_half, sizeof(blockhash_half)); exit(1);
+
+
     //dump(haraka_in_arr, 64 * NTHREAD); exit(1);
 
-    cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice);
+    //cudaMemcpy(haraka_in_arr_cuda, haraka_in_arr , 64 * NTHREAD, cudaMemcpyHostToDevice); // don't need this with new optimised kernel
 
     //haraka512(blockhash, blockhash_half); // ( out, in)
-    haraka512_gpu_wrapper(haraka_out_arr_cuda, haraka_in_arr_cuda); // ( out, in)
+    //haraka512_gpu_wrapper(haraka_out_arr_cuda, haraka_in_arr_cuda); // ( out, in)
+    haraka512_gpu_wrapper(haraka_out_arr_cuda, b0, b1, b2, b3, b4, b5, b6, b7, n * NTHREAD);
 
     err = cudaDeviceSynchronize();
     if (err) {
@@ -758,7 +771,7 @@ int main()
         if (fulltest(haraka_out_arr + m * 32, target)) {
         //if (1) {
             printf("\n");
-            printf("Solution found: " YELLOW);
+            printf("Solution found [%d]: " YELLOW, m);
             printf("full.%d ",n); for (int z=0; z < 32; z++) {
                 if (z==4) printf(GREEN);
                 printf("%02x", *(haraka_out_arr + m * 32 + 31-z));
@@ -768,7 +781,11 @@ int main()
             //for (int z=0; z < 32; z++) { printf("%02x", *(haraka_out_arr + m * 32 + 31-z)); } printf(" - ");
 
             // we already have hash, now we should correctly fill blocktemplate, according data for this hash
-            memcpy((unsigned char *)&blocktemplate + 1486 - 14, haraka_in_arr + m * 64 + 32, 15);
+            // memcpy((unsigned char *)&blocktemplate + 1486 - 14, haraka_in_arr + m * 64 + 32, 15);
+            uint32_t num = n * NTHREAD + m;
+            memcpy((unsigned char *)&blocktemplate + 1486 - 14, &num, 4);
+            memset((unsigned char *)&blocktemplate + 1486 - 14 + 4, 0, 11);
+
             submitblock(blocktemplate, coinbase_data);
             //exit(1);
 
