@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 
   uint32_t nmax = 256 * 1000000;
 //  uint32_t nmax = NTHREAD * 10000; 
-  uint32_t value;
+//  uint32_t value;
 
   k = 0;
   for (k=0; k < nmax / NTHREAD; k++) 

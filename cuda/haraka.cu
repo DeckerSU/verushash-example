@@ -13,7 +13,10 @@ Plain C implementation of the Haraka256 and Haraka512 permutations.
 #define memcpy_decker memcpy
 //}
 
-__device__ __constant__ static const unsigned char sbox[256] =
+__device__ __shared__ unsigned char sbox[256];
+__device__ __shared__ unsigned char smod[256];
+
+__device__ __constant__ static const unsigned char sbox_h[256] =
 { 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe,
   0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4,
   0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7,
@@ -35,7 +38,7 @@ __device__ __constant__ static const unsigned char sbox[256] =
   0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42,
   0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 };
 
-__device__ __constant__ static const unsigned char smod[256] =
+__device__ __constant__ static const unsigned char smod_h[256] =
 { 0x00, 0x03, 0x06, 0x05, 0x0C, 0x0F, 0x0A, 0x09, 0x18, 0x1B, 0x1E, 0x1D, 0x14, 
   0x17, 0x12, 0x11, 0x30, 0x33, 0x36, 0x35, 0x3C, 0x3F, 0x3A, 0x39, 0x28, 0x2B, 
   0x2E, 0x2D, 0x24, 0x27, 0x22, 0x21, 0x60, 0x63, 0x66, 0x65, 0x6C, 0x6F, 0x6A, 
@@ -74,6 +77,7 @@ __device__ void aesenc_double(unsigned char *s)
     t0 = v0 ^ v1;
     t1 = v1 ^ v2;
     t2 = v2 ^ v3;
+
     s[0] = smod[t0] ^ v0 ^ t2;
     s[1] = smod[t1] ^ t0 ^ v3;
     s[2] = smod[t2] ^ v2 ^ t0;
@@ -89,6 +93,7 @@ __device__ void aesenc_double(unsigned char *s)
     t0 = v0 ^ v1;
     t1 = v1 ^ v2;
     t2 = v2 ^ v3;
+
     s[4] = smod[t0] ^ v0 ^ t2;
     s[5] = smod[t1] ^ t0 ^ v3;
     s[6] = smod[t2] ^ v2 ^ t0;
@@ -103,8 +108,10 @@ __device__ void aesenc_double(unsigned char *s)
     t0 = v0 ^ v1;
     t1 = v1 ^ v2;
     t2 = v2 ^ v3;
+
     s[8] = smod[t0] ^ v0 ^ t2;
     s[9] = smod[t1] ^ t0 ^ v3;
+
     s[10] = smod[t2] ^ v2 ^ t0;
     s[11] = smod[v3 ^ v0] ^ v3 ^ t1;
 
@@ -202,6 +209,12 @@ __global__ void haraka512_gpu(unsigned char *out_arr, uint32_t b0, uint32_t b1, 
     uint32_t tid = threadIdx.x * BLOCKS + blockIdx.x;
     uint32_t *out = ((uint32_t *)out_arr  + tid * 8);
 //    uint32_t  *in = ((uint32_t *)in_arr   + tid * 16); 
+
+    for (int i=0; i<256; i++) 
+    {
+     sbox[i] = sbox_h[i];
+     smod[i] = smod_h[i];
+    }
 
     uint32_t in[16];
 
