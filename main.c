@@ -622,6 +622,7 @@ int main()
 
     /* GPU Init */
 
+        printf("    VRSC GPU Miner by " GREEN "Decker" RESET " & " GREEN "Ocean" RESET " v0.01alpha\n");
 
 		const char* arch = is_x64() ? "64-bits" : "32-bits";
 #ifdef _MSC_VER
