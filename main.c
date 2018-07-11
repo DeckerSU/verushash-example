@@ -671,7 +671,12 @@ int main()
 
     if (blocktemplate.nbits == 0) {
         printf(RED "Error: " RESET "Seems we failed to acquire data from daemon, waiting 60 sec.\n");
-        sleep(60);
+		
+		#ifndef _WIN32
+		sleep(60);
+		#else
+		_sleep(6000);
+		#endif
         continue;
     }
 
