@@ -40,9 +40,9 @@ OBJDIR_RELEASE = obj/Release
 DEP_RELEASE = 
 OUT_RELEASE = bin/Release/verushash_example
 
-OBJ_DEBUG = $(OBJDIR_DEBUG)/haraka.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/stuff.o
+OBJ_DEBUG = $(OBJDIR_DEBUG)/curve25519.o $(OBJDIR_DEBUG)/haraka.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/stuff.o
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/haraka.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/stuff.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/curve25519.o $(OBJDIR_RELEASE)/haraka.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/stuff.o
 
 all: debug release
 
@@ -58,6 +58,9 @@ debug: before_debug out_debug after_debug
 
 out_debug: before_debug $(OBJ_DEBUG) $(DEP_DEBUG)
 	$(LD) $(LIBDIR_DEBUG) -o $(OUT_DEBUG) $(OBJ_DEBUG)  $(LDFLAGS_DEBUG) $(LIB_DEBUG)
+
+$(OBJDIR_DEBUG)/curve25519.o: curve25519.c
+	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c curve25519.c -o $(OBJDIR_DEBUG)/curve25519.o
 
 $(OBJDIR_DEBUG)/haraka.o: haraka.c
 	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c haraka.c -o $(OBJDIR_DEBUG)/haraka.o
@@ -83,6 +86,9 @@ release: before_release out_release after_release
 
 out_release: before_release $(OBJ_RELEASE) $(DEP_RELEASE)
 	$(LD) $(LIBDIR_RELEASE) -o $(OUT_RELEASE) $(OBJ_RELEASE)  $(LDFLAGS_RELEASE) $(LIB_RELEASE)
+
+$(OBJDIR_RELEASE)/curve25519.o: curve25519.c
+	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c curve25519.c -o $(OBJDIR_RELEASE)/curve25519.o
 
 $(OBJDIR_RELEASE)/haraka.o: haraka.c
 	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c haraka.c -o $(OBJDIR_RELEASE)/haraka.o

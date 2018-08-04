@@ -42,6 +42,10 @@
 			<Add library="jansson" />
 			<Add directory="lib" />
 		</Linker>
+		<Unit filename="curve25519.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="curve25519.h" />
 		<Unit filename="haraka.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -13,6 +13,8 @@
 #include <jansson.h>
 #include <curl/curl.h>
 
+#include "curve25519.h"
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -419,6 +421,74 @@ void reverse_hexstr(char *str)
     free(rev);
 }
 
+bits256 bits256_doublesha256(char *hashstr,uint8_t *data,int32_t datalen)
+{
+    bits256 hash,hash2; int32_t i;
+    vcalc_sha256(0,hash.bytes,data,datalen);
+    vcalc_sha256(0,hash2.bytes,hash.bytes,sizeof(hash));
+    for (i=0; i<sizeof(hash); i++)
+        hash.bytes[i] = hash2.bytes[sizeof(hash) - 1 - i];
+    if ( hashstr != 0 )
+        init_hexbytes_noT(hashstr,hash.bytes,sizeof(hash));
+    return(hash);
+}
+
+bits256 bits256_calctxid(uint8_t *serialized,int32_t len)
+{
+    bits256 txid,revtxid; int32_t i;
+    memset(txid.bytes,0,sizeof(txid));
+    /*if ( strcmp(symbol,"GRS") != 0 && strcmp(symbol,"SMART") != 0 ) */
+    txid = bits256_doublesha256(0,serialized,len);
+    /*
+    else
+    {
+        vcalc_sha256(0,revtxid.bytes,serialized,len);
+        for (i=0; i<32; i++)
+            txid.bytes[i] = revtxid.bytes[31 - i];
+    }*/
+    return(txid);
+
+}
+
+int32_t iguana_rwbignum(int32_t rwflag,uint8_t *serialized,int32_t len,uint8_t *endianedp)
+{
+    int32_t i;
+    if ( rwflag == 0 )
+    {
+        for (i=0; i<len; i++)
+            endianedp[i] = serialized[len - 1 - i];
+    }
+    else
+    {
+        for (i=0; i<len; i++)
+            serialized[i] = endianedp[len - 1 - i];
+    }
+    return(len);
+}
+
+bits256 iguana_merkle(bits256 *tree,int32_t txn_count)
+{
+    int32_t i,n=0,prev; uint8_t serialized[sizeof(bits256) * 2];
+    if ( txn_count == 1 )
+        return(tree[0]);
+    prev = 0;
+    while ( txn_count > 1 )
+    {
+        if ( (txn_count & 1) != 0 )
+            tree[prev + txn_count] = tree[prev + txn_count-1], txn_count++;
+        n += txn_count;
+        for (i=0; i<txn_count; i+=2)
+        {
+            iguana_rwbignum(1,serialized,sizeof(*tree),tree[prev + i].bytes);
+            iguana_rwbignum(1,&serialized[sizeof(*tree)],sizeof(*tree),tree[prev + i + 1].bytes);
+            tree[n + (i >> 1)] = bits256_calctxid(/*symbol,*/serialized,sizeof(serialized));
+        }
+        prev = n;
+        txn_count >>= 1;
+    }
+    return(tree[n]);
+}
+
 // *** iguana_utils.c ***
 
 void submitblock(union tblocktemplate blocktemplate, unsigned char *coinbase_data) {
@@ -597,6 +667,70 @@ void bits2target(uint32_t nbits, unsigned char *target) {
 int main()
 {
 
+    /* block 104621
+
+    "merkleroot": "d5ca7c83c45f02349ce32389c7612ed275a90fe2dc5b72b70eafd8c8290f077f",
+  "tx": [
+    "445245ab880d9c49f2f1fa125348fc3d28301a9113dec6d3cfb2d705bd0de33f",
+    "230e111884fa3336d6d5f6e03367357b54982809d260badd087072a915c189ea",
+    "3ad6b63aa74da508a663cfa761a121aaa1fc03adcd1439c5e572e7429de88001",
+    "06dcab031200702a0187893b02e2cf247056cec00592e5089a46a308dd424ebb"
+  ],
+    */
+
+    // 01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0603ad98010155ffffffff01989a343c0200000023210239e96ab01b55c593ceb0031e3d39c81e109fab4bd64e7516c7e4b70612b09ee5ac3cda645b
+
+    /* template to check merkle root calc */
+
+    if (0) {
+
+    unsigned char rawtx[] =  { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0xff, 0xff, 0xff, 0xff, 0x06, 0x03, 0xad, 0x98, 0x01, 0x01, 0x55,
+  0xff, 0xff, 0xff, 0xff, 0x01, 0x98, 0x9a, 0x34, 0x3c, 0x02, 0x00, 0x00,
+  0x00, 0x23, 0x21, 0x02, 0x39, 0xe9, 0x6a, 0xb0, 0x1b, 0x55, 0xc5, 0x93,
+  0xce, 0xb0, 0x03, 0x1e, 0x3d, 0x39, 0xc8, 0x1e, 0x10, 0x9f, 0xab, 0x4b,
+  0xd6, 0x4e, 0x75, 0x16, 0xc7, 0xe4, 0xb7, 0x06, 0x12, 0xb0, 0x9e, 0xe5,
+  0xac, 0x3c, 0xda, 0x64, 0x5b };
+
+
+
+  printf("rawtx:\n");
+  for (int i=0; i<sizeof(rawtx); i++) {
+    printf("%02x", rawtx[i]);
+  }
+  printf("\n\n");
+  bits256 txid;
+  txid = bits256_calctxid((uint8_t *)rawtx, sizeof(rawtx));
+  for (int i=0; i<sizeof(txid); i++) {
+    printf("%02x", txid.bytes[i]);
+  }
+  printf("\n");
+
+
+
+    // LP_statemachine.c - testmerk
+
+    bits256 tree[256],roothash;
+    memset(tree,0,sizeof(tree));
+
+    decode_hex(tree[0].bytes,32,"445245ab880d9c49f2f1fa125348fc3d28301a9113dec6d3cfb2d705bd0de33f");
+    decode_hex(tree[1].bytes,32,"230e111884fa3336d6d5f6e03367357b54982809d260badd087072a915c189ea");
+    decode_hex(tree[2].bytes,32,"3ad6b63aa74da508a663cfa761a121aaa1fc03adcd1439c5e572e7429de88001");
+    decode_hex(tree[3].bytes,32,"06dcab031200702a0187893b02e2cf247056cec00592e5089a46a308dd424ebb");
+    roothash = iguana_merkle(tree,4);
+
+
+    for (int i=0; i<sizeof(roothash); i++) {
+        printf("%02x", roothash.bytes[i]);
+    }
+    printf("\n");
+
+
+    exit(1);
+    }
+
     unsigned char block_41970[] = {
 
 
@@ -666,12 +800,9 @@ int main()
 
     unsigned char blockhash[128], blockhash_half[128];
 
-
-    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
-
     if (blocktemplate.nbits == 0) {
         printf(RED "Error: " RESET "Seems we failed to acquire data from daemon, waiting 60 sec.\n");
-		
+
 		#ifndef _WIN32
 		sleep(60);
 		#else
@@ -680,7 +811,9 @@ int main()
         continue;
     }
 
+    //bits2target(0x1cff0000, target); // tsrget = 0x00000000ff000000000000000000000000000000000000000000000000000000
     bits2target(blocktemplate.nbits, target); // target should read from getblocktemplate
+
     printf("target: "); for (int x=0; x<32; x++) printf("%02x", target[31-x]); printf("\n");
 
     uint32_t n, nmax;
